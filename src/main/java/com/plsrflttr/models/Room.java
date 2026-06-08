@@ -33,6 +33,10 @@ public class Room {
     @Column(nullable = false)
     private RoomType type;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BookingMode bookingMode;
+
     private Integer capacity;
 
     /**

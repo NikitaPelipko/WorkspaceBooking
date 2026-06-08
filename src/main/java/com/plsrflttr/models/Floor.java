@@ -33,5 +33,5 @@ public class Floor {
     private String svgUrl;
 
     @OneToMany(mappedBy = "floor")
-    private List<Room> rooms = new ArrayList();
+    private List<Room> rooms = new ArrayList<>();
 }

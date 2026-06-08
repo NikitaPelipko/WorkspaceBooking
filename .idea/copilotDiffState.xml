@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="/RoomsController (snapshot).java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="/RoomsController (snapshot).java" />
+              <option name="originalContent" value="package com.plsrflttr.controllers;&#10;&#10;import com.plsrflttr.dto.RoomDto;&#10;import com.plsrflttr.dto.WorkplaceDto;&#10;import com.plsrflttr.services.RoomsService;&#10;import lombok.RequiredArgsConstructor;&#10;import org.springframework.http.HttpStatus;&#10;import org.springframework.http.ResponseEntity;&#10;import org.springframework.web.bind.annotation.GetMapping;&#10;import org.springframework.web.bind.annotation.PathVariable;&#10;import org.springframework.web.bind.annotation.RequestMapping;&#10;import org.springframework.web.bind.annotation.RestController;&#10;&#10;import java.util.List;&#10;&#10;@RestController&#10;@RequiredArgsConstructor&#10;@RequestMapping(&quot;/api/rooms&quot;)&#10;public class RoomsController {&#10;    private final RoomsService roomsService;&#10;&#10;    @GetMapping(&quot;/{room_id}&quot;)&#10;    public RoomDto getRoom() {&#10;        return ResponseEntity.status(HttpStatus.OK).body(roomsService.getRoom(&quot;&quot;)).getBody();&#10;    }&#10;&#10;    @GetMapping(&quot;/{room_id}/workplaces&quot;)&#10;    public List&lt;WorkplaceDto&gt; getWorkplaces(@PathVariable String room_id) {&#10;        return ResponseEntity.status(HttpStatus.OK).body(roomsService.getWorkplaces(room_id)).getBody();&#10;    }&#10;&#10;}&#10;" />
+              <option name="updatedContent" value="package com.plsrflttr.controllers;&#10;&#10;import com.plsrflttr.dto.RoomDto;&#10;import com.plsrflttr.dto.WorkplaceDto;&#10;import com.plsrflttr.services.RoomsService;&#10;import lombok.RequiredArgsConstructor;&#10;import org.springframework.web.bind.annotation.GetMapping;&#10;import org.springframework.web.bind.annotation.PathVariable;&#10;import org.springframework.web.bind.annotation.RequestMapping;&#10;import org.springframework.web.bind.annotation.RestController;&#10;&#10;import java.util.List;&#10;&#10;@RestController&#10;@RequiredArgsConstructor&#10;@RequestMapping(&quot;/api/rooms&quot;)&#10;public class RoomsController {&#10;    private final RoomsService roomsService;&#10;&#10;    @GetMapping(&quot;/{room_id}&quot;)&#10;    public RoomDto getRoom(@PathVariable String room_id) {&#10;        return roomsService.getRoom(room_id);&#10;    }&#10;&#10;    @GetMapping(&quot;/{room_id}/workplaces&quot;)&#10;    public List&lt;WorkplaceDto&gt; getWorkplaces(@PathVariable String room_id) {&#10;        return roomsService.getWorkplaces(room_id);&#10;    }&#10;&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

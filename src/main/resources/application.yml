@@ -1,5 +1,10 @@
+spring:
+  config:
+    import: "optional:file:.env[.properties]"
+
 app:
   jwt:
-    secret: "Rk1uUE1rYkF1WmE3bmZtbG1sQ0tyc2M5QmE3N2xwN0lOQ0ZPVGxwVT0="
-    expiration-minutes: 120
-
+    access-secret: ${APP_JWT_ACCESS_SECRET}
+    refresh-secret: ${APP_JWT_REFRESH_SECRET}
+    access-expiration-minutes: ${APP_JWT_ACCESS_EXPIRATION_MINUTES:120}
+    refresh-expiration-days: ${APP_JWT_REFRESH_EXPIRATION_DAYS:14}

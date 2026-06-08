@@ -35,14 +35,13 @@ public class AuthService {
         user.setLastName(request.getLastName());
         User saved = userRepository.save(user);
 
-        String token = jwtService.generateToken(
-                org.springframework.security.core.userdetails.User.withUsername(saved.getEmail())
-                        .password(saved.getPasswordHash())
-                        .authorities("ROLE_USER")
-                        .build(),
-                saved.getId()
-        );
-        return new AuthResponse(token);
+        var userDetails = org.springframework.security.core.userdetails.User.withUsername(saved.getEmail())
+                .password(saved.getPasswordHash())
+                .authorities("ROLE_USER")
+                .build();
+        String accessToken = jwtService.generateAccessToken(userDetails, saved.getId());
+        String refreshToken = jwtService.generateRefreshToken(userDetails, saved.getId());
+        return new AuthResponse(accessToken, refreshToken);
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -53,14 +52,30 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
-        String token = jwtService.generateToken(
-                org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
-                        .password(user.getPasswordHash())
-                        .authorities("ROLE_USER")
-                        .build(),
-                user.getId()
-        );
-        return new AuthResponse(token);
+        var userDetails = org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+                .password(user.getPasswordHash())
+                .authorities("ROLE_USER")
+                .build();
+        String accessToken = jwtService.generateAccessToken(userDetails, user.getId());
+        String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
+        return new AuthResponse(accessToken, refreshToken);
+    }
+
+    public AuthResponse refresh(String refreshToken) {
+        String username = jwtService.extractUsernameFromRefreshToken(refreshToken);
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
+
+        var userDetails = org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+                .password(user.getPasswordHash())
+                .authorities("ROLE_USER")
+                .build();
+        if (!jwtService.isRefreshTokenValid(refreshToken, userDetails)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
+
+        String accessToken = jwtService.generateAccessToken(userDetails, user.getId());
+        String newRefreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
+        return new AuthResponse(accessToken, newRefreshToken);
     }
 }
-

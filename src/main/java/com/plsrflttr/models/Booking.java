@@ -33,21 +33,22 @@ public class Booking {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workplace_id", nullable = false)
-    private Workplace workplace;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = "target_type")
+    private BookingMode targetType;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "target_id")
+    private UUID targetId;
+
+    @Column(nullable = false, name = "start_time")
     private LocalDateTime startTime;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "end_time")
     private LocalDateTime endTime;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
-
-    private String purpose;
 
     @CreationTimestamp
     @Column(updatable = false)

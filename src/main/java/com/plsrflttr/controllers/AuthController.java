@@ -3,6 +3,7 @@ package com.plsrflttr.controllers;
 import com.plsrflttr.dto.AuthRequest;
 import com.plsrflttr.dto.AuthResponse;
 import com.plsrflttr.dto.RegisterRequest;
+import com.plsrflttr.dto.RefreshRequest;
 import com.plsrflttr.services.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,8 +25,12 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthRequest request) {
-        return authService.login(request);
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request.getRefreshToken()));
     }
 }
-
