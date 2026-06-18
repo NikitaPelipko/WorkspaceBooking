@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Корпуса — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+<div id="toast-container"></div>
+
+<div class="page-container">
+  <div class="breadcrumb-bar">
+    <a href="home.html">Главная</a>
+    <span class="sep">›</span>
+    <span class="current">Корпуса</span>
+  </div>
+
+  <div class="page-header">
+    <h1>Выберите корпус</h1>
+    <p>Все здания университета с доступными рабочими местами</p>
+  </div>
+
+  <div id="buildings-container">
+    <div class="loading-state"><div class="spinner"></div>Загружаем корпуса…</div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  initNav('buildings');
+
+  async function loadBuildings() {
+    const container = document.getElementById('buildings-container');
+    try {
+      const buildings = await API.getBuildings();
+
+      if (!buildings || buildings.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V13h6v8"/>
+            </svg>
+            <h3>Корпуса не найдены</h3>
+            <p>Обратитесь к администратору</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="grid-3">${buildings.map(b => buildingCard(b)).join('')}</div>`;
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  function buildingCard(b) {
+    const floors = b.floorIds?.length || 0;
+    return `
+      <a class="card-clickable building-card" href="floors.html?buildingId=${b.id}&buildingName=${encodeURIComponent(b.name)}">
+        <div class="building-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V13h6v8"/>
+          </svg>
+        </div>
+        <h3>${escHtml(b.name)}</h3>
+        <p class="address">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:3px">
+            <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.5"/>
+          </svg>
+          ${escHtml(b.address || 'Адрес не указан')}
+        </p>
+        <div class="meta">
+          Этажей: <strong>${floors}</strong>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;color:var(--accent);font-weight:600">Выбрать этаж →</span>
+        </div>
+      </a>`;
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  loadBuildings();
+</script>
+</body>
+</html>

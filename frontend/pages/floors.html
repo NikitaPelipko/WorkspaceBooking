@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Этажи — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+<div id="toast-container"></div>
+
+<div class="page-container">
+  <div class="breadcrumb-bar">
+    <a href="home.html">Главная</a>
+    <span class="sep">›</span>
+    <a href="buildings.html">Корпуса</a>
+    <span class="sep">›</span>
+    <span class="current" id="breadcrumb-building">Корпус</span>
+  </div>
+
+  <div class="page-header">
+    <h1 id="page-title">Выберите этаж</h1>
+    <p id="page-sub">Список доступных этажей</p>
+  </div>
+
+  <!-- Date/time filter -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-body">
+      <div class="section-title" style="margin-bottom:12px">Фильтр по времени <span style="font-weight:400;text-transform:none;font-size:12px;color:var(--text-muted)">(необязательно — покажет доступность)</span></div>
+      <div class="form-row" style="align-items:flex-end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">С</label>
+          <input type="datetime-local" id="filter-from" class="form-control"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">По</label>
+          <input type="datetime-local" id="filter-to" class="form-control"/>
+        </div>
+        <button class="btn-secondary" onclick="loadFloors()" style="white-space:nowrap">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          Применить
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="floors-container">
+    <div class="loading-state"><div class="spinner"></div>Загружаем этажи…</div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  initNav('buildings');
+
+  const params = new URLSearchParams(location.search);
+  const buildingId   = params.get('buildingId');
+  const buildingName = params.get('buildingName') || 'Корпус';
+
+  if (!buildingId) window.location.href = 'buildings.html';
+
+  document.getElementById('breadcrumb-building').textContent = buildingName;
+  document.getElementById('page-title').textContent = buildingName;
+  document.getElementById('page-sub').textContent   = 'Выберите этаж для просмотра доступных мест';
+
+  // Default time = now + 1h
+  const now   = new Date();
+  const plus1 = new Date(now.getTime() + 60 * 60 * 1000);
+  document.getElementById('filter-from').value = toLocalISOString(now);
+  document.getElementById('filter-to').value   = toLocalISOString(plus1);
+
+  function toLocalISOString(d) {
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+  }
+
+  async function loadFloors() {
+    const container = document.getElementById('floors-container');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>Загружаем этажи…</div>';
+
+    const from = document.getElementById('filter-from').value;
+    const to   = document.getElementById('filter-to').value;
+
+    try {
+      const floors = await API.getFloorsByBuilding(buildingId);
+
+      if (!floors || floors.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+            </svg>
+            <h3>Этажи не найдены</h3>
+            <p>В этом корпусе пока нет доступных этажей</p>
+          </div>`;
+        return;
+      }
+
+      // Sort by floor number
+      floors.sort((a, b) => a.floorNumber - b.floorNumber);
+
+      container.innerHTML = `<div class="grid-2">${floors.map(f => floorCard(f, from, to)).join('')}</div>`;
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  function floorCard(f, from, to) {
+    const roomCount = f.roomIds?.length || 0;
+    const qFrom = from ? `&from=${encodeURIComponent(from)}` : '';
+    const qTo   = to   ? `&to=${encodeURIComponent(to)}`     : '';
+
+    return `
+      <a class="floor-card card-clickable"
+         href="floor-detail.html?floorId=${f.id}&buildingId=${buildingId}&buildingName=${encodeURIComponent(buildingName)}&floorName=${encodeURIComponent(f.name || 'Этаж ' + f.floorNumber)}${qFrom}${qTo}">
+        <div class="floor-number">${f.floorNumber}</div>
+        <div class="floor-info">
+          <h4>${escHtml(f.name || 'Этаж ' + f.floorNumber)}</h4>
+          <p>Помещений: ${roomCount}</p>
+        </div>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--text-muted);flex-shrink:0">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </a>`;
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  loadFloors();
+</script>
+</body>
+</html>

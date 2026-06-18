@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Этаж — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    .workplaces-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
+    .room-card { margin-bottom: 14px; }
+
+    /* SVG MAP */
+    .map-wrapper {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
+      min-height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .map-wrapper svg { max-width: 100%; height: auto; display: block; }
+    .map-wrapper img { max-width: 100%; height: auto; display: block; }
+    .no-map { color: var(--text-muted); font-size: 13px; padding: 24px; text-align: center; }
+
+    /* Highlight rooms on map via svgElementId */
+    .map-room-available { fill: #DCFCE7 !important; stroke: #16A34A !important; cursor: pointer; transition: fill .15s; }
+    .map-room-busy      { fill: #FEE2E2 !important; stroke: #DC2626 !important; }
+    .map-room-available:hover { fill: #BBF7D0 !important; }
+  </style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+<div id="toast-container"></div>
+
+<div class="page-container">
+  <div class="breadcrumb-bar">
+    <a href="home.html">Главная</a>
+    <span class="sep">›</span>
+    <a href="buildings.html">Корпуса</a>
+    <span class="sep">›</span>
+    <a href="#" id="bc-building">Корпус</a>
+    <span class="sep">›</span>
+    <span class="current" id="bc-floor">Этаж</span>
+  </div>
+
+  <div class="page-header">
+    <h1 id="page-title">Этаж</h1>
+    <p id="page-sub">Выберите помещение или рабочее место</p>
+  </div>
+
+  <!-- TIME RANGE (carried from floors page or editable) -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="card-body">
+      <div class="section-title" style="margin-bottom:12px">Интервал бронирования</div>
+      <div class="form-row" style="align-items:flex-end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">С</label>
+          <input type="datetime-local" id="time-from" class="form-control"/>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">По</label>
+          <input type="datetime-local" id="time-to" class="form-control"/>
+        </div>
+        <button class="btn-secondary" onclick="reloadMap()">Обновить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-section"></div>
+
+  <!-- ROOMS LIST -->
+  <div class="section-title">Помещения и рабочие места</div>
+  <div id="rooms-container">
+    <div class="loading-state"><div class="spinner"></div>Загружаем карту этажа…</div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="booking-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Бронирование</h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="booking-summary" id="booking-summary-box"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Начало</label>
+        <input type="datetime-local" id="modal-from" class="form-control"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Конец</label>
+        <input type="datetime-local" id="modal-to" class="form-control"/>
+      </div>
+    </div>
+
+    <div id="alert-booking" class="alert alert-error"></div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Отмена</button>
+      <button class="btn-primary" id="btn-confirm-booking" onclick="confirmBooking()">
+        Подтвердить
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  initNav('buildings');
+
+  const params = new URLSearchParams(location.search);
+  const floorId      = params.get('floorId');
+  const buildingId   = params.get('buildingId');
+  const buildingName = params.get('buildingName') || 'Корпус';
+  const floorName    = params.get('floorName')    || 'Этаж';
+
+  if (!floorId) window.location.href = 'buildings.html';
+
+  // Breadcrumbs
+  document.getElementById('bc-building').textContent = buildingName;
+  document.getElementById('bc-building').href = `floors.html?buildingId=${buildingId}&buildingName=${encodeURIComponent(buildingName)}`;
+  document.getElementById('bc-floor').textContent    = floorName;
+  document.getElementById('page-title').textContent  = floorName;
+
+  // Pre-fill times
+  const pFrom = params.get('from');
+  const pTo   = params.get('to');
+
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    const d   = new Date(iso);
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+  }
+
+  const defaultFrom = pFrom ? toLocalInput(pFrom) : toLocalInput(new Date());
+  const defaultTo   = pTo   ? toLocalInput(pTo)   : toLocalInput(new Date(Date.now() + 3600000));
+
+  document.getElementById('time-from').value = defaultFrom;
+  document.getElementById('time-to').value   = defaultTo;
+
+  // State for booking modal
+  let pendingBooking = null;
+
+  function reloadMap() { loadFloorMap(); }
+
+  async function loadFloorMap() {
+    const from = document.getElementById('time-from').value;
+    const to   = document.getElementById('time-to').value;
+    const container = document.getElementById('rooms-container');
+    const mapSec    = document.getElementById('map-section');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>Загружаем…</div>';
+    mapSec.innerHTML = '';
+
+    try {
+      const mapDto = await API.getFloorMap(
+        floorId,
+        from ? new Date(from).toISOString() : null,
+        to   ? new Date(to).toISOString()   : null
+      );
+
+      // Map SVG
+      if (mapDto.svgUrl) {
+        mapSec.innerHTML = `
+          <div class="map-wrapper">
+            <img src="${mapDto.svgUrl}" alt="План этажа" id="floor-svg-img"/>
+          </div>`;
+      } else {
+        mapSec.innerHTML = `<div class="map-wrapper"><div class="no-map">План этажа не загружен</div></div>`;
+      }
+
+      // Rooms
+      if (!mapDto.rooms || mapDto.rooms.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Помещения не найдены</h3>
+            <p>На этом этаже нет доступных помещений</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = mapDto.rooms.map(r => roomCard(r, from, to)).join('');
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  function roomCard(room, from, to) {
+    const isAvailable = room.availableNow;
+    const hasWorkplaces = room.workplaces && room.workplaces.length > 0;
+
+    let wpHtml = '';
+    if (hasWorkplaces) {
+      wpHtml = `
+        <div class="workplaces-grid">
+          ${room.workplaces.map(wp => workplaceChip(wp, room, from, to)).join('')}
+        </div>`;
+    }
+
+    // For rooms bookable as whole (MEETING_ROOM, LECTURE_ROOM)
+    let bookRoomBtn = '';
+    if (room.bookingMode === 'ROOM' || room.type === 'MEETING_ROOM' || room.type === 'LECTURE_ROOM') {
+      bookRoomBtn = `
+        <button class="btn-primary btn-sm" style="margin-top:12px"
+                onclick="openBookingModal('${room.id}','ROOM','${escHtml(room.name)}','${from}','${to}')">
+          Забронировать комнату
+        </button>`;
+    }
+
+    return `
+      <div class="room-card card">
+        <div class="card-body">
+          <div class="room-header">
+            <div>
+              <span class="room-type">${RoomTypeLabel[room.type] || room.type}</span>
+              <h4 style="margin-top:6px">${escHtml(room.name)}</h4>
+            </div>
+            <span class="badge ${isAvailable ? 'badge-available' : 'badge-busy'}">
+              ${isAvailable ? 'Доступно' : 'Занято'}
+            </span>
+          </div>
+          <div class="room-meta">
+            ${room.capacity ? `<span>Вместимость: <strong>${room.capacity}</strong></span>` : ''}
+          </div>
+          ${wpHtml}
+          ${bookRoomBtn}
+        </div>
+      </div>`;
+  }
+
+  function workplaceChip(wp, room, from, to) {
+    const avail = wp.availableNow && wp.status === 'AVAILABLE';
+    const cls   = wp.status === 'AVAILABLE' ? (avail ? 'available' : 'unavailable') :
+                  wp.status === 'MAINTENANCE' ? 'maintenance' : 'unavailable';
+    const click = avail
+      ? `onclick="openBookingModal('${wp.id}','WORKPLACE','${escHtml(wp.code)}','${from}','${to}')"`
+      : '';
+    return `
+      <div class="workplace-chip ${cls}" ${click} title="${WorkplaceStatusLabel[wp.status] || wp.status}">
+        <div style="font-weight:600">${escHtml(wp.code)}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">${avail ? '✓' : '✗'}</div>
+      </div>`;
+  }
+
+  // ==================== MODAL ====================
+  function openBookingModal(targetId, targetType, targetName, from, to) {
+    pendingBooking = { targetId, targetType, targetName };
+    hideAlert('alert-booking');
+
+    document.getElementById('modal-from').value = from || '';
+    document.getElementById('modal-to').value   = to   || '';
+
+    document.getElementById('booking-summary-box').innerHTML = `
+      <h4>Детали бронирования</h4>
+      <div class="summary-row"><span>Объект</span><span>${escHtml(targetName)}</span></div>
+      <div class="summary-row"><span>Тип</span><span>${BookingModeLabel[targetType] || targetType}</span></div>`;
+
+    document.getElementById('booking-modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('booking-modal').classList.remove('show');
+    pendingBooking = null;
+  }
+
+  async function confirmBooking() {
+    if (!pendingBooking) return;
+    hideAlert('alert-booking');
+
+    const from = document.getElementById('modal-from').value;
+    const to   = document.getElementById('modal-to').value;
+
+    if (!from || !to) { showAlert('alert-booking', 'Укажите время начала и конца'); return; }
+    if (new Date(from) >= new Date(to)) { showAlert('alert-booking', 'Время начала должно быть раньше окончания'); return; }
+    if (new Date(from) < new Date()) { showAlert('alert-booking', 'Нельзя бронировать в прошлом'); return; }
+
+    const btn = document.getElementById('btn-confirm-booking');
+    setLoading(btn, true, 'Бронируем…');
+
+    try {
+      await API.createBooking(
+        pendingBooking.targetId,
+        pendingBooking.targetType,
+        new Date(from).toISOString(),
+        new Date(to).toISOString()
+      );
+      closeModal();
+      showToast('Бронирование подтверждено!', 'success');
+      loadFloorMap(); // Refresh availability
+    } catch (e) {
+      showAlert('alert-booking', e.message || 'Ошибка при бронировании');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // Close modal on overlay click
+  document.getElementById('booking-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+  }
+
+  loadFloorMap();
+</script>
+</body>
+</html>

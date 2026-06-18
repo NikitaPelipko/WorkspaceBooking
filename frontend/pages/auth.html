@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Вход — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+        </svg>
+      </div>
+      <h2>WorkSpace</h2>
+      <p>Система бронирования рабочих мест</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login"  onclick="switchTab('login')">Вход</div>
+      <div class="auth-tab"        id="tab-register" onclick="switchTab('register')">Регистрация</div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="form-login">
+      <div id="alert-login" class="alert alert-error"></div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="login-email" class="form-control" placeholder="you@university.edu" autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center" id="btn-login" onclick="doLogin()">
+        Войти
+      </button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="form-register" style="display:none">
+      <div id="alert-register" class="alert alert-error"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Имя</label>
+          <input type="text" id="reg-firstname" class="form-control" placeholder="Иван"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Фамилия</label>
+          <input type="text" id="reg-lastname" class="form-control" placeholder="Иванов"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="reg-email" class="form-control" placeholder="you@university.edu"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input type="password" id="reg-password" class="form-control" placeholder="Минимум 6 символов"/>
+        <div class="form-hint">Используйте надёжный пароль</div>
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center" id="btn-register" onclick="doRegister()">
+        Создать аккаунт
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  // Redirect if already logged in
+  if (Auth.isLoggedIn()) window.location.href = '/pages/home.html';
+
+  function switchTab(tab) {
+    document.getElementById('form-login').style.display    = tab === 'login'    ? '' : 'none';
+    document.getElementById('form-register').style.display = tab === 'register' ? '' : 'none';
+    document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    hideAlert('alert-login'); hideAlert('alert-register');
+  }
+
+  async function doLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    hideAlert('alert-login');
+    if (!email || !password) { showAlert('alert-login', 'Заполните все поля'); return; }
+
+    const btn = document.getElementById('btn-login');
+    setLoading(btn, true, 'Входим…');
+    try {
+      const data = await API.login(email, password);
+      Auth.setTokens(data.accessToken, data.refreshToken);
+      // Decode user info from token (simple JWT decode)
+      const payload = JSON.parse(atob(data.accessToken.split('.')[1]));
+      Auth.saveUser({ email: payload.sub });
+      window.location.href = '/pages/home.html';
+    } catch (e) {
+      showAlert('alert-login', e.message || 'Неверный email или пароль');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function doRegister() {
+    const firstName = document.getElementById('reg-firstname').value.trim();
+    const lastName  = document.getElementById('reg-lastname').value.trim();
+    const email     = document.getElementById('reg-email').value.trim();
+    const password  = document.getElementById('reg-password').value;
+    hideAlert('alert-register');
+
+    if (!firstName || !lastName || !email || !password) {
+      showAlert('alert-register', 'Заполните все поля'); return;
+    }
+    if (password.length < 6) {
+      showAlert('alert-register', 'Пароль должен быть не менее 6 символов'); return;
+    }
+
+    const btn = document.getElementById('btn-register');
+    setLoading(btn, true, 'Регистрируем…');
+    try {
+      const data = await API.register(email, password, firstName, lastName);
+      Auth.setTokens(data.accessToken, data.refreshToken);
+      Auth.saveUser({ email, firstName, lastName });
+      window.location.href = '/pages/home.html';
+    } catch (e) {
+      showAlert('alert-register', e.message || 'Ошибка регистрации');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const tab = document.getElementById('tab-login').classList.contains('active') ? 'login' : 'register';
+    if (tab === 'login') doLogin(); else doRegister();
+  });
+</script>
+</body>
+</html>

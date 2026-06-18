@@ -17,10 +17,31 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - workspace-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: workspacebooking-minio
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    command: server /data --console-address ":9001"
+
+    volumes:
+      - minio_data:/data
+    networks:
+      - workspace-network
 
   app:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: workspacebooking-app
     depends_on:
@@ -28,13 +49,27 @@ services:
         condition: service_healthy
     env_file:
       - .env
-    environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
     ports:
       - "8080:8080"
+    networks:
+      - workspace-network
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: workspacebooking-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - workspace-network
 
 volumes:
   db_data:
+  minio_data:
+
+networks:
+  workspace-network:
+    driver: bridge
+

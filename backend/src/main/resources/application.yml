@@ -1,0 +1,43 @@
+spring:
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/workspace_booking}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${SPRING_JPA_SHOW_SQL:false}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+
+app:
+  jwt:
+    access-secret: ${APP_JWT_ACCESS_SECRET}
+    refresh-secret: ${APP_JWT_REFRESH_SECRET}
+    access-expiration-minutes: ${APP_JWT_ACCESS_EXPIRATION_MINUTES:120}
+    refresh-expiration-days: ${APP_JWT_REFRESH_EXPIRATION_DAYS:14}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket-name: ${MINIO_BUCKET_NAME:svg-maps}
+
+logging:
+  level:
+    com.plsrflttr: ${LOG_LEVEL:INFO}
+    io.minio: ${MINIO_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always
+
