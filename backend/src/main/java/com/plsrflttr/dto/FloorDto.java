@@ -17,7 +17,6 @@ public class FloorDto {
     private UUID buildingId;
     private String name;
     private Integer floorNumber;
-    private String svgObjectKey;
     private List<UUID> roomIds;
 }
 

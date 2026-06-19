@@ -12,9 +12,6 @@ import java.util.UUID;
 
 public interface WorkplaceRepository extends JpaRepository<Workplace, UUID> {
     Optional<Workplace> findByCode(String code);
-
-    Optional<Workplace> findBySvgElementId(String svgElementId);
-
     List<Workplace> findByRoomId(UUID roomId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

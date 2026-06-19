@@ -10,27 +10,6 @@
   <style>
     .workplaces-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
     .room-card { margin-bottom: 14px; }
-
-    /* SVG MAP */
-    .map-wrapper {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      margin-bottom: 24px;
-      min-height: 180px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .map-wrapper svg { max-width: 100%; height: auto; display: block; }
-    .map-wrapper img { max-width: 100%; height: auto; display: block; }
-    .no-map { color: var(--text-muted); font-size: 13px; padding: 24px; text-align: center; }
-
-    /* Highlight rooms on map via svgElementId */
-    .map-room-available { fill: #DCFCE7 !important; stroke: #16A34A !important; cursor: pointer; transition: fill .15s; }
-    .map-room-busy      { fill: #FEE2E2 !important; stroke: #DC2626 !important; }
-    .map-room-available:hover { fill: #BBF7D0 !important; }
   </style>
 </head>
 <body>
@@ -67,19 +46,13 @@
           <label class="form-label">По</label>
           <input type="datetime-local" id="time-to" class="form-control"/>
         </div>
-        <button class="btn-secondary" onclick="reloadMap()">Обновить</button>
       </div>
     </div>
   </div>
 
-  <!-- MAP -->
-  <div id="map-section"></div>
-
   <!-- ROOMS LIST -->
   <div class="section-title">Помещения и рабочие места</div>
-  <div id="rooms-container">
-    <div class="loading-state"><div class="spinner"></div>Загружаем карту этажа…</div>
-  </div>
+  
 </div>
 
 <!-- BOOKING MODAL -->
@@ -152,49 +125,6 @@
 
   // State for booking modal
   let pendingBooking = null;
-
-  function reloadMap() { loadFloorMap(); }
-
-  async function loadFloorMap() {
-    const from = document.getElementById('time-from').value;
-    const to   = document.getElementById('time-to').value;
-    const container = document.getElementById('rooms-container');
-    const mapSec    = document.getElementById('map-section');
-    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>Загружаем…</div>';
-    mapSec.innerHTML = '';
-
-    try {
-      const mapDto = await API.getFloorMap(
-        floorId,
-        from ? new Date(from).toISOString() : null,
-        to   ? new Date(to).toISOString()   : null
-      );
-
-      // Map SVG
-      if (mapDto.svgUrl) {
-        mapSec.innerHTML = `
-          <div class="map-wrapper">
-            <img src="${mapDto.svgUrl}" alt="План этажа" id="floor-svg-img"/>
-          </div>`;
-      } else {
-        mapSec.innerHTML = `<div class="map-wrapper"><div class="no-map">План этажа не загружен</div></div>`;
-      }
-
-      // Rooms
-      if (!mapDto.rooms || mapDto.rooms.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <h3>Помещения не найдены</h3>
-            <p>На этом этаже нет доступных помещений</p>
-          </div>`;
-        return;
-      }
-
-      container.innerHTML = mapDto.rooms.map(r => roomCard(r, from, to)).join('');
-    } catch (e) {
-      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
-    }
-  }
 
   function roomCard(room, from, to) {
     const isAvailable = room.availableNow;
@@ -296,7 +226,6 @@
       );
       closeModal();
       showToast('Бронирование подтверждено!', 'success');
-      loadFloorMap(); // Refresh availability
     } catch (e) {
       showAlert('alert-booking', e.message || 'Ошибка при бронировании');
     } finally {
@@ -313,7 +242,6 @@
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
   }
 
-  loadFloorMap();
 </script>
 </body>
 </html>

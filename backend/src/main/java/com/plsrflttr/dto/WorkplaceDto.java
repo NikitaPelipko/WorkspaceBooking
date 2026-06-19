@@ -17,7 +17,6 @@ public class WorkplaceDto {
     private UUID id;
     private UUID roomId;
     private String code;
-    private String svgElementId;
     private WorkplaceStatus status;
     private Set<EquipmentDto> equipment;
 }

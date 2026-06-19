@@ -13,8 +13,6 @@ import java.util.UUID;
 public interface RoomRepository extends JpaRepository<Room, UUID> {
     List<Room> findByFloorId(UUID floorId);
 
-    Optional<Room> findBySvgElementId(String svgElementId);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
     select r

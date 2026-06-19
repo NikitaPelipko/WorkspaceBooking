@@ -19,7 +19,6 @@ public class RoomDto {
     private String name;
     private RoomType type;
     private Integer capacity;
-    private String svgElementId;
     private List<UUID> workplaceIds;
 }
 

@@ -33,8 +33,6 @@ public class AdminService {
     private final RoomMapper roomMapper;
     private final WorkplaceMapper workplaceMapper;
     private final EquipmentMapper equipmentMapper;
-    private final MinioService minioService;
-
     // ==================== USERS ====================
 
     @Transactional(readOnly = true)
@@ -105,14 +103,6 @@ public class AdminService {
     public void deleteBuilding(UUID buildingId) {
         Building building = buildingRepository.findById(buildingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Building not found"));
-        // Delete associated floor SVGs from MinIO
-        if (building.getFloors() != null) {
-            for (Floor floor : building.getFloors()) {
-                if (floor.getSvgObjectKey() != null) {
-                    try { minioService.delete(floor.getSvgObjectKey()); } catch (Exception ignored) {}
-                }
-            }
-        }
         buildingRepository.delete(building);
     }
 
@@ -137,13 +127,6 @@ public class AdminService {
         Floor floor = floorMapper.toEntity(dto);
         floor.setBuilding(building);
 
-        // Upload SVG if provided
-        if (svgFile != null && !svgFile.isEmpty()) {
-            String objectKey = "floors/" + UUID.randomUUID() + ".svg";
-            minioService.uploadSvg(svgFile, objectKey);
-            floor.setSvgObjectKey(objectKey);
-        }
-
         Floor saved = floorRepository.save(floor);
         return floorMapper.toDto(saved);
     }
@@ -155,14 +138,6 @@ public class AdminService {
         if (dto.getName() != null) floor.setName(dto.getName());
         if (dto.getFloorNumber() != null) floor.setFloorNumber(dto.getFloorNumber());
 
-        if (svgFile != null && !svgFile.isEmpty()) {
-            if (floor.getSvgObjectKey() != null) {
-                try { minioService.delete(floor.getSvgObjectKey()); } catch (Exception ignored) {}
-            }
-            String objectKey = "floors/" + UUID.randomUUID() + ".svg";
-            minioService.uploadSvg(svgFile, objectKey);
-            floor.setSvgObjectKey(objectKey);
-        }
 
         return floorMapper.toDto(floorRepository.save(floor));
     }
@@ -170,9 +145,6 @@ public class AdminService {
     public void deleteFloor(UUID floorId) {
         Floor floor = floorRepository.findById(floorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
-        if (floor.getSvgObjectKey() != null) {
-            try { minioService.delete(floor.getSvgObjectKey()); } catch (Exception ignored) {}
-        }
         floorRepository.delete(floor);
     }
 
@@ -202,9 +174,6 @@ public class AdminService {
         if (room.getType() == null) {
             room.setType(RoomType.OPEN_SPACE);
         }
-        if (room.getSvgElementId() == null || room.getSvgElementId().isBlank()) {
-            room.setSvgElementId("room_" + System.currentTimeMillis());
-        }
 
         Room saved = roomRepository.save(room);
         return roomMapper.toDto(saved);
@@ -217,7 +186,6 @@ public class AdminService {
         if (dto.getName() != null) room.setName(dto.getName());
         if (dto.getType() != null) room.setType(dto.getType());
         if (dto.getCapacity() != null) room.setCapacity(dto.getCapacity());
-        if (dto.getSvgElementId() != null) room.setSvgElementId(dto.getSvgElementId());
         if (dto.getFloorId() != null) {
             Floor floor = floorRepository.findById(dto.getFloorId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
@@ -254,7 +222,6 @@ public class AdminService {
         Workplace wp = new Workplace();
         wp.setRoom(room);
         wp.setCode(dto.getCode());
-        wp.setSvgElementId(dto.getSvgElementId() != null ? dto.getSvgElementId() : "wp_" + System.currentTimeMillis());
         wp.setStatus(dto.getStatus() != null ? dto.getStatus() : WorkplaceStatus.AVAILABLE);
         wp.setEquipment(resolveEquipment(dto.getEquipment()));
 
@@ -267,7 +234,6 @@ public class AdminService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workplace not found"));
 
         if (dto.getCode() != null) wp.setCode(dto.getCode());
-        if (dto.getSvgElementId() != null) wp.setSvgElementId(dto.getSvgElementId());
         if (dto.getStatus() != null) wp.setStatus(dto.getStatus());
         if (dto.getEquipment() != null) wp.setEquipment(resolveEquipment(dto.getEquipment()));
         if (dto.getRoomId() != null) {
@@ -327,9 +293,6 @@ public class AdminService {
         Equipment equipment = equipmentRepository.findById(equipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found"));
 
-        // Equipment связан с Workplace через @ManyToMany (workplace_equipment).
-        // Перед удалением отвязываем его от всех рабочих мест,
-        // иначе упадём на FK constraint в join-таблице.
         List<Workplace> linkedWorkplaces = workplaceRepository.findAll().stream()
                 .filter(wp -> wp.getEquipment() != null && wp.getEquipment().contains(equipment))
                 .toList();
@@ -354,12 +317,6 @@ public class AdminService {
         return dto;
     }
 
-    /**
-     * Превращает набор EquipmentDto (присланных с фронта, обычно только с id)
-     * в реальные управляемые JPA-сущности Equipment из БД.
-     * Если equipmentDtos == null или пуст - возвращает пустой Set
-     * (т.е. снимает всё оборудование с рабочего места).
-     */
     private java.util.Set<Equipment> resolveEquipment(java.util.Set<EquipmentDto> equipmentDtos) {
         if (equipmentDtos == null || equipmentDtos.isEmpty()) {
             return new java.util.HashSet<>();

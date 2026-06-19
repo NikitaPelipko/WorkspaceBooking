@@ -132,16 +132,6 @@ const API = {
   getWorkplacesByRoom(roomId)               { return Http.get(`/rooms/${roomId}/workplaces`); },
   getWorkplace(workplaceId)                 { return Http.get(`/workplaces/${workplaceId}`); },
 
-  // Map
-  getFloorMap(floorId, from, to) {
-    let url = `/map/floors/${floorId}`;
-    const params = [];
-    if (from) params.push(`from=${encodeURIComponent(from)}`);
-    if (to)   params.push(`to=${encodeURIComponent(to)}`);
-    if (params.length) url += '?' + params.join('&');
-    return Http.get(url);
-  },
-
   // Bookings
   createBooking(targetId, targetType, startTime, endTime) {
     return Http.post('/booking/', { targetId, targetType, startTime, endTime });
@@ -268,7 +258,7 @@ function initNav(activePage) {
 
   // Add admin link for ADMIN users
   if (Auth.isAdmin()) {
-    navLinks.push({ href: '/pages/admin.html', label: 'Админка', key: 'admin' });
+    navLinks.push({ href: '/pages/admin.html', label: 'Админ-панель', key: 'admin' });
   }
 
   const nav = document.getElementById('app-nav');
