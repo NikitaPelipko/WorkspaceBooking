@@ -582,6 +582,58 @@ a:hover { text-decoration: underline; }
 }
 .hero-banner .btn-white:hover { opacity: .92; }
 
+/* ========== SEARCH & LIST STYLES ========== */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.list-toolbar .section-title {
+  margin: 0;
+}
+.list-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ========== EQUIPMENT TAGS ========== */
+.eq-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.eq-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ========== FILTER BAR ========== */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  align-items: flex-end;
+}
+.filter-bar .form-group {
+  margin: 0;
+  flex: 1;
+  min-width: 150px;
+}
+.filter-bar .btn-secondary,
+.filter-bar .btn-primary {
+  white-space: nowrap;
+}
+
 /* ========== RESPONSIVENESS ========== */
 @media (max-width: 640px) {
   .page-container { padding: 20px 14px 48px; }
@@ -591,4 +643,5 @@ a:hover { text-decoration: underline; }
   .hero-banner { padding: 24px 20px; }
   .profile-header { flex-direction: column; text-align: center; }
   .bookings-table th:nth-child(3), .bookings-table td:nth-child(3) { display: none; }
+  .filter-bar .form-group { min-width: 100%; }
 }

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Поиск мест — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    .search-filters {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .filter-grid .form-group { margin: 0; }
+
+    .results-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .results-tab {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .15s;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+    }
+    .results-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .results-tab:hover:not(.active) {
+      color: var(--text-main);
+    }
+
+    .result-count {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .room-result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      transition: box-shadow .2s;
+    }
+    .room-result-card:hover {
+      box-shadow: var(--shadow);
+    }
+    .room-result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .room-result-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .room-result-location {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .room-result-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .workplace-result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .workplace-result-item {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      background: var(--surface);
+    }
+    .workplace-result-item:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .workplace-result-item.unavailable {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .workplace-result-item.unavailable:hover {
+      border-color: var(--border);
+      background: var(--surface);
+    }
+    .workplace-result-code {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .workplace-result-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .equipment-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .equipment-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-input-wrapper svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 14px 10px 40px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--text-main);
+      background: var(--surface);
+      transition: border-color .15s;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+<div id="toast-container"></div>
+
+<div class="page-container">
+  <div class="breadcrumb-bar">
+    <a href="home.html">Главная</a>
+    <span class="sep">›</span>
+    <span class="current">Поиск мест</span>
+  </div>
+
+  <div class="page-header">
+    <h1>Поиск рабочих мест и комнат</h1>
+    <p>Найдите и забронируйте подходящее место</p>
+  </div>
+
+  <!-- SEARCH FILTERS -->
+  <div class="search-filters">
+    <div class="search-input-wrapper">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" id="search-text" class="search-input" placeholder="Поиск по названию комнаты или коду места..."/>
+    </div>
+
+    <div class="filter-grid">
+      <div class="form-group">
+        <label class="form-label">Корпус</label>
+        <select id="filter-building" class="form-control" onchange="onBuildingChange()">
+          <option value="">Все корпуса</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Этаж</label>
+        <select id="filter-floor" class="form-control" onchange="loadResults()">
+          <option value="">Все этажи</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Тип комнаты</label>
+        <select id="filter-room-type" class="form-control" onchange="loadResults()">
+          <option value="">Все типы</option>
+          <option value="OPEN_SPACE">Опенспейс</option>
+          <option value="MEETING_ROOM">Переговорная</option>
+          <option value="COWORKING">Коворкинг</option>
+          <option value="LECTURE_ROOM">Лекционный зал</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">С</label>
+        <input type="datetime-local" id="filter-from" class="form-control"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">По</label>
+        <input type="datetime-local" id="filter-to" class="form-control"/>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="loadResults()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        Найти
+      </button>
+      <button class="btn-secondary" onclick="resetFilters()">Сбросить</button>
+    </div>
+  </div>
+
+  <!-- RESULTS TABS -->
+  <div class="results-tabs">
+    <button class="results-tab active" id="tab-rooms" onclick="switchTab('rooms')">Комнаты</button>
+    <button class="results-tab" id="tab-workplaces" onclick="switchTab('workplaces')">Рабочие места</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="result-count" id="result-count"></div>
+  <div id="results-container">
+    <div class="loading-state"><div class="spinner"></div>Выберите параметры и нажмите «Найти»</div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="booking-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Бронирование</h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="booking-summary" id="booking-summary-box"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Начало</label>
+        <input type="datetime-local" id="modal-from" class="form-control"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Конец</label>
+        <input type="datetime-local" id="modal-to" class="form-control"/>
+      </div>
+    </div>
+    <div id="alert-booking" class="alert alert-error"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Отмена</button>
+      <button class="btn-primary" id="btn-confirm-booking" onclick="confirmBooking()">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  initNav('search');
+
+  let currentTab = 'rooms';
+  let allBuildings = [];
+  let allFloors = [];
+  let pendingBooking = null;
+
+  // Default time = now + 1h
+  const now   = new Date();
+  const plus1 = new Date(now.getTime() + 60 * 60 * 1000);
+  document.getElementById('filter-from').value = toLocalISOString(now);
+  document.getElementById('filter-to').value   = toLocalISOString(plus1);
+
+  function toLocalISOString(d) {
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+  }
+
+  // ==================== INIT ====================
+  async function init() {
+    try {
+      allBuildings = await API.getBuildings();
+      const buildingSelect = document.getElementById('filter-building');
+      allBuildings.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name;
+        buildingSelect.appendChild(opt);
+      });
+
+      // Load URL params if any
+      const params = new URLSearchParams(location.search);
+      const buildingId = params.get('buildingId');
+      const floorId = params.get('floorId');
+      if (buildingId) {
+        buildingSelect.value = buildingId;
+        await onBuildingChange();
+        if (floorId) {
+          document.getElementById('filter-floor').value = floorId;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load buildings:', e);
+    }
+  }
+
+  async function onBuildingChange() {
+    const buildingId = document.getElementById('filter-building').value;
+    const floorSelect = document.getElementById('filter-floor');
+    floorSelect.innerHTML = '<option value="">Все этажи</option>';
+
+    if (buildingId) {
+      try {
+        allFloors = await API.getFloorsByBuilding(buildingId);
+        allFloors.sort((a, b) => a.floorNumber - b.floorNumber);
+        allFloors.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name || `Этаж ${f.floorNumber}`;
+          floorSelect.appendChild(opt);
+        });
+      } catch (e) {
+        console.error('Failed to load floors:', e);
+      }
+    }
+    loadResults();
+  }
+
+  // ==================== TABS ====================
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-rooms').classList.toggle('active', tab === 'rooms');
+    document.getElementById('tab-workplaces').classList.toggle('active', tab === 'workplaces');
+    loadResults();
+  }
+
+  // ==================== LOAD RESULTS ====================
+  async function loadResults() {
+    const container = document.getElementById('results-container');
+    const countEl = document.getElementById('result-count');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>Загрузка...</div>';
+    countEl.textContent = '';
+
+    const floorId = document.getElementById('filter-floor').value;
+    const roomType = document.getElementById('filter-room-type').value;
+    const searchText = document.getElementById('search-text').value.toLowerCase().trim();
+    const from = document.getElementById('filter-from').value;
+    const to = document.getElementById('filter-to').value;
+
+    try {
+      if (currentTab === 'rooms') {
+        let rooms = [];
+        if (floorId) {
+          rooms = await API.getRoomsByFloor(floorId);
+        } else if (roomType) {
+          rooms = await API.getRooms(null, roomType);
+        } else {
+          // Get all rooms from all floors of selected building, or all rooms
+          const buildingId = document.getElementById('filter-building').value;
+          if (buildingId) {
+            const floors = await API.getFloorsByBuilding(buildingId);
+            const roomPromises = floors.map(f => API.getRoomsByFloor(f.id));
+            const roomArrays = await Promise.all(roomPromises);
+            rooms = roomArrays.flat();
+          } else {
+            rooms = await API.getRooms();
+          }
+        }
+
+        // Apply text filter
+        if (searchText) {
+          rooms = rooms.filter(r => r.name.toLowerCase().includes(searchText));
+        }
+        // Apply room type filter
+        if (roomType) {
+          rooms = rooms.filter(r => r.type === roomType);
+        }
+
+        countEl.textContent = `Найдено комнат: ${rooms.length}`;
+        renderRooms(rooms, from, to);
+      } else {
+        // Workplaces tab
+        let workplaces = [];
+        const roomId = floorId ? null : null;
+
+        if (floorId) {
+          const rooms = await API.getRoomsByFloor(floorId);
+          const wpPromises = rooms.map(r => API.getWorkplacesByRoom(r.id));
+          const wpArrays = await Promise.all(wpPromises);
+          workplaces = wpArrays.flat();
+        } else {
+          const buildingId = document.getElementById('filter-building').value;
+          if (buildingId) {
+            const floors = await API.getFloorsByBuilding(buildingId);
+            const allRooms = [];
+            for (const f of floors) {
+              const rooms = await API.getRoomsByFloor(f.id);
+              allRooms.push(...rooms);
+            }
+            const wpPromises = allRooms.map(r => API.getWorkplacesByRoom(r.id));
+            const wpArrays = await Promise.all(wpPromises);
+            workplaces = wpArrays.flat();
+          } else {
+            workplaces = await API.getWorkplaces();
+          }
+        }
+
+        // Apply text filter
+        if (searchText) {
+          workplaces = workplaces.filter(wp => wp.code.toLowerCase().includes(searchText));
+        }
+
+        countEl.textContent = `Найдено рабочих мест: ${workplaces.length}`;
+        renderWorkplaces(workplaces, from, to);
+      }
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  // ==================== RENDER ROOMS ====================
+  function renderRooms(rooms, from, to) {
+    const container = document.getElementById('results-container');
+    if (rooms.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+          </svg>
+          <h3>Комнаты не найдены</h3>
+          <p>Попробуйте изменить параметры поиска</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = rooms.map(room => roomResultCard(room, from, to)).join('');
+  }
+
+  function roomResultCard(room, from, to) {
+    const canBookRoom = room.bookingMode === 'ROOM' || room.type === 'MEETING_ROOM' || room.type === 'LECTURE_ROOM';
+
+    return `
+      <div class="room-result-card">
+        <div class="room-result-header">
+          <div>
+            <span class="room-type">${RoomTypeLabel[room.type] || room.type}</span>
+            <h4 class="room-result-title" style="margin-top:6px">${escHtml(room.name)}</h4>
+          </div>
+          <span class="badge badge-available">${room.capacity ? `до ${room.capacity} чел.` : 'Комната'}</span>
+        </div>
+        <div class="room-result-meta">
+          <span>Режим: <strong>${BookingModeLabel[room.bookingMode] || room.bookingMode}</strong></span>
+          <span>Мест: <strong>${room.workplaceIds?.length || 0}</strong></span>
+        </div>
+        ${canBookRoom ? `
+          <button class="btn-primary btn-sm" onclick="openBookingModal('${room.id}','ROOM','${escHtml(room.name)}','${from}','${to}')">
+            Забронировать комнату
+          </button>
+        ` : ''}
+      </div>`;
+  }
+
+  // ==================== RENDER WORKPLACES ====================
+  function renderWorkplaces(workplaces, from, to) {
+    const container = document.getElementById('results-container');
+    if (workplaces.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+          </svg>
+          <h3>Рабочие места не найдены</h3>
+          <p>Попробуйте изменить параметры поиска</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="workplace-result-grid">
+        ${workplaces.map(wp => workplaceResultItem(wp, from, to)).join('')}
+      </div>`;
+  }
+
+  function workplaceResultItem(wp, from, to) {
+    const isAvailable = wp.status === 'AVAILABLE';
+    const click = isAvailable
+      ? `onclick="openBookingModal('${wp.id}','WORKPLACE','${escHtml(wp.code)}','${from}','${to}')"`
+      : '';
+    const cls = isAvailable ? '' : 'unavailable';
+    const statusLabel = WorkplaceStatusLabel[wp.status] || wp.status;
+
+    const equipmentTags = wp.equipment && wp.equipment.length > 0
+      ? `<div class="equipment-tags">${wp.equipment.map(eq => `<span class="equipment-tag">${escHtml(eq.name)}</span>`).join('')}</div>`
+      : '';
+
+    return `
+      <div class="workplace-result-item ${cls}" ${click} title="${statusLabel}">
+        <div class="workplace-result-code">${escHtml(wp.code)}</div>
+        <div class="workplace-result-status">${isAvailable ? '✓ Доступно' : '✗ ' + statusLabel}</div>
+        ${equipmentTags}
+      </div>`;
+  }
+
+  // ==================== RESET ====================
+  function resetFilters() {
+    document.getElementById('search-text').value = '';
+    document.getElementById('filter-building').value = '';
+    document.getElementById('filter-floor').innerHTML = '<option value="">Все этажи</option>';
+    document.getElementById('filter-room-type').value = '';
+    document.getElementById('filter-from').value = toLocalISOString(new Date());
+    document.getElementById('filter-to').value = toLocalISOString(new Date(Date.now() + 3600000));
+    loadResults();
+  }
+
+  // ==================== MODAL ====================
+  function openBookingModal(targetId, targetType, targetName, from, to) {
+    pendingBooking = { targetId, targetType, targetName };
+    hideAlert('alert-booking');
+
+    document.getElementById('modal-from').value = from || '';
+    document.getElementById('modal-to').value   = to   || '';
+
+    document.getElementById('booking-summary-box').innerHTML = `
+      <h4>Детали бронирования</h4>
+      <div class="summary-row"><span>Объект</span><span>${escHtml(targetName)}</span></div>
+      <div class="summary-row"><span>Тип</span><span>${BookingModeLabel[targetType] || targetType}</span></div>`;
+
+    document.getElementById('booking-modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('booking-modal').classList.remove('show');
+    pendingBooking = null;
+  }
+
+  async function confirmBooking() {
+    if (!pendingBooking) return;
+    hideAlert('alert-booking');
+
+    const from = document.getElementById('modal-from').value;
+    const to   = document.getElementById('modal-to').value;
+
+    if (!from || !to) { showAlert('alert-booking', 'Укажите время начала и конца'); return; }
+    if (new Date(from) >= new Date(to)) { showAlert('alert-booking', 'Время начала должно быть раньше окончания'); return; }
+    if (new Date(from) < new Date()) { showAlert('alert-booking', 'Нельзя бронировать в прошлом'); return; }
+
+    const btn = document.getElementById('btn-confirm-booking');
+    setLoading(btn, true, 'Бронируем...');
+
+    try {
+      await API.createBooking(
+        pendingBooking.targetId,
+        pendingBooking.targetType,
+        new Date(from).toISOString(),
+        new Date(to).toISOString()
+      );
+      closeModal();
+      showToast('Бронирование подтверждено!', 'success');
+      loadResults();
+    } catch (e) {
+      showAlert('alert-booking', e.message || 'Ошибка при бронировании');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  document.getElementById('booking-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+  }
+
+  // ==================== INIT ====================
+  init();
+</script>
+</body>
+</html>

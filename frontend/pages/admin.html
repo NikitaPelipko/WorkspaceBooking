@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Админка — WorkSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    /* Admin-specific styles */
+    .admin-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .admin-tab {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .admin-tab:hover { color: var(--text-main); background: var(--bg); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+    .admin-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-soft); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+
+    .admin-section { display: none; }
+    .admin-section.active { display: block; }
+
+    .admin-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .data-table th {
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .data-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg); }
+    .data-table .actions { display: flex; gap: 6px; }
+    .data-table .actions button {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all .15s;
+    }
+    .data-table .actions button:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .data-table .actions button.danger:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+
+    .modal-overlay.admin-modal .modal-box {
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .status-select {
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-family: var(--font-sans);
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: 0; top: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%; height: 100%;
+    }
+
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 99px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    .empty-row td {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 32px;
+    }
+
+    .admin-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .admin-stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .admin-stat-card .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+    .admin-stat-card .value { font-size: 24px; font-weight: 700; color: var(--text-main); line-height: 1; }
+  </style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+<div id="toast-container"></div>
+
+<div class="page-container">
+  <div class="breadcrumb-bar">
+    <a href="home.html">Главная</a>
+    <span class="sep">›</span>
+    <span class="current">Администрирование</span>
+  </div>
+
+  <div class="page-header">
+    <h1>Панель администратора</h1>
+    <p>Управление инфраструктурой, пользователями и бронированиями</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="admin-stat-grid" id="admin-stats">
+    <div class="admin-stat-card"><div class="label">Корпусов</div><div class="value" id="stat-buildings">—</div></div>
+    <div class="admin-stat-card"><div class="label">Этажей</div><div class="value" id="stat-floors">—</div></div>
+    <div class="admin-stat-card"><div class="label">Комнат</div><div class="value" id="stat-rooms">—</div></div>
+    <div class="admin-stat-card"><div class="label">Рабочих мест</div><div class="value" id="stat-workplaces">—</div></div>
+    <div class="admin-stat-card"><div class="label">Оборудования</div><div class="value" id="stat-equipment">—</div></div>
+    <div class="admin-stat-card"><div class="label">Пользователей</div><div class="value" id="stat-users">—</div></div>
+    <div class="admin-stat-card"><div class="label">Броней</div><div class="value" id="stat-bookings">—</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <div class="admin-tab active" data-tab="buildings" onclick="switchTab('buildings')">Корпуса</div>
+    <div class="admin-tab" data-tab="floors" onclick="switchTab('floors')">Этажи</div>
+    <div class="admin-tab" data-tab="rooms" onclick="switchTab('rooms')">Комнаты</div>
+    <div class="admin-tab" data-tab="workplaces" onclick="switchTab('workplaces')">Рабочие места</div>
+    <div class="admin-tab" data-tab="equipment" onclick="switchTab('equipment')">Оборудование</div>
+    <div class="admin-tab" data-tab="users" onclick="switchTab('users')">Пользователи</div>
+    <div class="admin-tab" data-tab="bookings" onclick="switchTab('bookings')">Бронирования</div>
+  </div>
+
+  <!-- BUILDINGS -->
+  <div class="admin-section active" id="tab-buildings">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Корпуса</h2>
+      <button class="btn-primary btn-sm" onclick="openBuildingModal()">+ Добавить корпус</button>
+    </div>
+    <div id="buildings-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- FLOORS -->
+  <div class="admin-section" id="tab-floors">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Этажи</h2>
+      <button class="btn-primary btn-sm" onclick="openFloorModal()">+ Добавить этаж</button>
+    </div>
+    <div id="floors-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- ROOMS -->
+  <div class="admin-section" id="tab-rooms">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Комнаты</h2>
+      <button class="btn-primary btn-sm" onclick="openRoomModal()">+ Добавить комнату</button>
+    </div>
+    <div id="rooms-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- WORKPLACES -->
+  <div class="admin-section" id="tab-workplaces">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Рабочие места</h2>
+      <button class="btn-primary btn-sm" onclick="openWorkplaceModal()">+ Добавить место</button>
+    </div>
+    <div id="workplaces-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- EQUIPMENT -->
+  <div class="admin-section" id="tab-equipment">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Оборудование</h2>
+      <button class="btn-primary btn-sm" onclick="openEquipmentModal()">+ Добавить оборудование</button>
+    </div>
+    <div id="equipment-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- USERS -->
+  <div class="admin-section" id="tab-users">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Пользователи</h2>
+    </div>
+    <div id="users-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+
+  <!-- BOOKINGS -->
+  <div class="admin-section" id="tab-bookings">
+    <div class="admin-toolbar">
+      <h2 style="font-size:16px;font-weight:700;margin:0">Бронирования</h2>
+    </div>
+    <div id="bookings-table-container"><div class="loading-state"><div class="spinner"></div>Загрузка...</div></div>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Building Modal -->
+<div class="modal-overlay admin-modal" id="building-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="building-modal-title">Добавить корпус</h3>
+      <button class="modal-close" onclick="closeModal('building-modal')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="alert-building" class="alert alert-error"></div>
+    <input type="hidden" id="building-id"/>
+    <div class="form-group">
+      <label class="form-label">Название *</label>
+      <input type="text" id="building-name" class="form-control" placeholder="Например: Главный корпус"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Адрес</label>
+      <input type="text" id="building-address" class="form-control" placeholder="Улица, дом"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('building-modal')">Отмена</button>
+      <button class="btn-primary" id="btn-save-building" onclick="saveBuilding()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floor Modal -->
+<div class="modal-overlay admin-modal" id="floor-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="floor-modal-title">Добавить этаж</h3>
+      <button class="modal-close" onclick="closeModal('floor-modal')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="alert-floor" class="alert alert-error"></div>
+    <input type="hidden" id="floor-id"/>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Корпус *</label>
+        <select id="floor-building" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Название *</label>
+        <input type="text" id="floor-name" class="form-control" placeholder="Например: 1 этаж"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Номер этажа</label>
+      <input type="number" id="floor-number" class="form-control" placeholder="1"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('floor-modal')">Отмена</button>
+      <button class="btn-primary" id="btn-save-floor" onclick="saveFloor()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Room Modal -->
+<div class="modal-overlay admin-modal" id="room-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="room-modal-title">Добавить комнату</h3>
+      <button class="modal-close" onclick="closeModal('room-modal')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="alert-room" class="alert alert-error"></div>
+    <input type="hidden" id="room-id"/>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Этаж *</label>
+        <select id="room-floor" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Название *</label>
+        <input type="text" id="room-name" class="form-control" placeholder="Например: Переговорная 101"/>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Тип</label>
+        <select id="room-type" class="form-control">
+          <option value="OPEN_SPACE">Опенспейс</option>
+          <option value="MEETING_ROOM">Переговорная</option>
+          <option value="COWORKING">Коворкинг</option>
+          <option value="LECTURE_ROOM">Лекционный зал</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Режим бронирования</label>
+        <select id="room-booking-mode" class="form-control">
+          <option value="ROOM">Комната целиком</option>
+          <option value="WORKPLACE">Рабочие места</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Вместимость</label>
+        <input type="number" id="room-capacity" class="form-control" placeholder="10"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('room-modal')">Отмена</button>
+      <button class="btn-primary" id="btn-save-room" onclick="saveRoom()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Workplace Modal -->
+<div class="modal-overlay admin-modal" id="workplace-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="workplace-modal-title">Добавить рабочее место</h3>
+      <button class="modal-close" onclick="closeModal('workplace-modal')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="alert-workplace" class="alert alert-error"></div>
+    <input type="hidden" id="workplace-id"/>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Комната *</label>
+        <select id="workplace-room" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Код *</label>
+        <input type="text" id="workplace-code" class="form-control" placeholder="Например: WP-001"/>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Статус</label>
+        <select id="workplace-status" class="form-control">
+          <option value="AVAILABLE">Доступно</option>
+          <option value="OUT_OF_SERVICE">Недоступно</option>
+          <option value="MAINTENANCE">Обслуживание</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Оборудование</label>
+      <div id="workplace-equipment-list" style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="form-hint">Загрузка списка оборудования...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('workplace-modal')">Отмена</button>
+      <button class="btn-primary" id="btn-save-workplace" onclick="saveWorkplace()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Modal -->
+<div class="modal-overlay admin-modal" id="equipment-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="equipment-modal-title">Добавить оборудование</h3>
+      <button class="modal-close" onclick="closeModal('equipment-modal')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="alert-equipment" class="alert alert-error"></div>
+    <input type="hidden" id="equipment-id"/>
+    <div class="form-group">
+      <label class="form-label">Название *</label>
+      <input type="text" id="equipment-name" class="form-control" placeholder="Например: Монитор, Веб-камера, Проектор"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('equipment-modal')">Отмена</button>
+      <button class="btn-primary" id="btn-save-equipment" onclick="saveEquipment()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+  // ==================== INIT ====================
+  initNav('admin');
+
+  // Redirect non-admin users
+  if (!Auth.isAdmin()) {
+    window.location.href = '/pages/home.html';
+  }
+
+  // Cache data
+  let cache = { buildings: [], floors: [], rooms: [], workplaces: [], equipment: [], users: [], bookings: [] };
+  let currentTab = 'buildings';
+
+  // ==================== TAB SWITCHING ====================
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + tab));
+    loadTabData(tab);
+  }
+
+  function loadTabData(tab) {
+    switch(tab) {
+      case 'buildings': loadBuildings(); break;
+      case 'floors': loadFloors(); break;
+      case 'rooms': loadRooms(); break;
+      case 'workplaces': loadWorkplaces(); break;
+      case 'equipment': loadEquipment(); break;
+      case 'users': loadUsers(); break;
+      case 'bookings': loadBookings(); break;
+    }
+  }
+
+  // ==================== STATS ====================
+  async function loadStats() {
+    try {
+      const [buildings, floors, rooms, workplaces, equipment, users, bookings] = await Promise.all([
+        API.adminGetBuildings().catch(() => []),
+        API.adminGetFloors().catch(() => []),
+        API.adminGetRooms().catch(() => []),
+        API.adminGetWorkplaces().catch(() => []),
+        API.adminGetEquipment().catch(() => []),
+        API.adminGetUsers().catch(() => []),
+        API.adminGetBookings().catch(() => []),
+      ]);
+      cache.buildings = buildings; cache.floors = floors; cache.rooms = rooms;
+      cache.workplaces = workplaces; cache.equipment = equipment; cache.users = users; cache.bookings = bookings;
+      document.getElementById('stat-buildings').textContent = buildings.length;
+      document.getElementById('stat-floors').textContent = floors.length;
+      document.getElementById('stat-rooms').textContent = rooms.length;
+      document.getElementById('stat-workplaces').textContent = workplaces.length;
+      document.getElementById('stat-equipment').textContent = equipment.length;
+      document.getElementById('stat-users').textContent = users.length;
+      document.getElementById('stat-bookings').textContent = bookings.length;
+    } catch(e) {
+      showToast('Ошибка загрузки статистики', 'error');
+    }
+  }
+
+  // ==================== BUILDINGS ====================
+  async function loadBuildings() {
+    const container = document.getElementById('buildings-table-container');
+    try {
+      const data = await API.adminGetBuildings();
+      cache.buildings = data;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет корпусов</h3><p>Добавьте первый корпус</p></div></div>';
+        return;
+      }
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Название</th><th>Адрес</th><th>Этажей</th><th style="width:120px"></th></tr></thead>
+          <tbody>${data.map(b => `
+            <tr>
+              <td><strong>${escHtml(b.name)}</strong></td>
+              <td>${escHtml(b.address || '—')}</td>
+              <td>${b.floorIds?.length || 0}</td>
+              <td class="actions">
+                <button onclick="editBuilding('${b.id}')">Изм.</button>
+                <button class="danger" onclick="deleteBuilding('${b.id}')">Удал.</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  function openBuildingModal(id) {
+    hideAlert('alert-building');
+    document.getElementById('building-id').value = id || '';
+    document.getElementById('building-name').value = '';
+    document.getElementById('building-address').value = '';
+    document.getElementById('building-modal-title').textContent = id ? 'Изменить корпус' : 'Добавить корпус';
+
+    if (id) {
+      const b = cache.buildings.find(x => x.id === id);
+      if (b) {
+        document.getElementById('building-name').value = b.name || '';
+        document.getElementById('building-address').value = b.address || '';
+      }
+    }
+    document.getElementById('building-modal').classList.add('show');
+  }
+
+  async function saveBuilding() {
+    const id = document.getElementById('building-id').value;
+    const name = document.getElementById('building-name').value.trim();
+    const address = document.getElementById('building-address').value.trim();
+    if (!name) { showAlert('alert-building', 'Введите название'); return; }
+
+    hideAlert('alert-building');
+    const btn = document.getElementById('btn-save-building');
+    setLoading(btn, true);
+    try {
+      if (id) {
+        await API.adminUpdateBuilding(id, { name, address });
+      } else {
+        await API.adminCreateBuilding({ name, address });
+      }
+      closeModal('building-modal');
+      showToast(id ? 'Корпус обновлен' : 'Корпус создан', 'success');
+      loadBuildings();
+      loadStats();
+    } catch(e) {
+      showAlert('alert-building', e.message);
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  function editBuilding(id) { openBuildingModal(id); }
+
+  async function deleteBuilding(id) {
+    if (!confirm('Удалить корпус? Все этажи и помещения будут также удалены.')) return;
+    try {
+      await API.adminDeleteBuilding(id);
+      showToast('Корпус удален', 'success');
+      loadBuildings();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== FLOORS ====================
+  async function loadFloors() {
+    const container = document.getElementById('floors-table-container');
+    try {
+      const [data, buildings] = await Promise.all([
+        API.adminGetFloors(),
+        API.adminGetBuildings().catch(() => cache.buildings),
+      ]);
+      cache.floors = data;
+      cache.buildings = buildings;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет этажей</h3><p>Добавьте первый этаж</p></div></div>';
+        return;
+      }
+      const buildingMap = Object.fromEntries(buildings.map(b => [b.id, b.name]));
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Название</th><th>Корпус</th><th>Номер</th><th>Комнат</th><th style="width:120px"></th></tr></thead>
+          <tbody>${data.map(f => `
+            <tr>
+              <td><strong>${escHtml(f.name)}</strong></td>
+              <td>${escHtml(buildingMap[f.buildingId] || '—')}</td>
+              <td>${f.floorNumber ?? '—'}</td>
+              <td>${f.roomIds?.length || 0}</td>
+              <td class="actions">
+                <button onclick="editFloor('${f.id}')">Изм.</button>
+                <button class="danger" onclick="deleteFloor('${f.id}')">Удал.</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  async function populateBuildingSelect(selectId) {
+    const select = document.getElementById(selectId);
+    try {
+      const buildings = await API.adminGetBuildings();
+      select.innerHTML = buildings.map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`).join('');
+    } catch {
+      select.innerHTML = '<option>Ошибка загрузки</option>';
+    }
+  }
+
+  async function openFloorModal(id) {
+    hideAlert('alert-floor');
+    document.getElementById('floor-id').value = id || '';
+    document.getElementById('floor-name').value = '';
+    document.getElementById('floor-number').value = '';
+    document.getElementById('floor-modal-title').textContent = id ? 'Изменить этаж' : 'Добавить этаж';
+    await populateBuildingSelect('floor-building');
+
+    if (id) {
+      const f = cache.floors.find(x => x.id === id);
+      if (f) {
+        document.getElementById('floor-building').value = f.buildingId;
+        document.getElementById('floor-name').value = f.name || '';
+        document.getElementById('floor-number').value = f.floorNumber || '';
+      }
+    }
+    document.getElementById('floor-modal').classList.add('show');
+  }
+
+  async function saveFloor() {
+    const id = document.getElementById('floor-id').value;
+    const buildingId = document.getElementById('floor-building').value;
+    const name = document.getElementById('floor-name').value.trim();
+    const floorNumber = document.getElementById('floor-number').value;
+
+    if (!buildingId || !name) { showAlert('alert-floor', 'Заполните обязательные поля'); return; }
+
+    hideAlert('alert-floor');
+    const btn = document.getElementById('btn-save-floor');
+    setLoading(btn, true);
+    try {
+      const payload = {
+            buildingId: buildingId,
+            name: name,
+            floorNumber: floorNumber ? parseInt(floorNumber) : null
+        };
+
+      if (id) {
+        await API.adminUpdateFloor(id, payload);
+      } else {
+        await API.adminCreateFloor(payload);
+      }
+      closeModal('floor-modal');
+      showToast(id ? 'Этаж обновлен' : 'Этаж создан', 'success');
+      loadFloors();
+      loadStats();
+    } catch(e) {
+      showAlert('alert-floor', e.message);
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  function editFloor(id) { openFloorModal(id); }
+
+  async function deleteFloor(id) {
+    if (!confirm('Удалить этаж? Все комнаты и рабочие места будут также удалены.')) return;
+    try {
+      await API.adminDeleteFloor(id);
+      showToast('Этаж удален', 'success');
+      loadFloors();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== ROOMS ====================
+  async function loadRooms() {
+    const container = document.getElementById('rooms-table-container');
+    try {
+      const [data, floors] = await Promise.all([
+        API.adminGetRooms(),
+        API.adminGetFloors().catch(() => cache.floors),
+      ]);
+      cache.rooms = data;
+      cache.floors = floors;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет комнат</h3><p>Добавьте первую комнату</p></div></div>';
+        return;
+      }
+      const floorMap = Object.fromEntries(floors.map(f => [f.id, f.name]));
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Название</th><th>Этаж</th><th>Тип</th><th>Режим</th><th>Вмест.</th><th style="width:120px"></th></tr></thead>
+          <tbody>${data.map(r => `
+            <tr>
+              <td><strong>${escHtml(r.name)}</strong></td>
+              <td>${escHtml(floorMap[r.floorId] || '—')}</td>
+              <td>${RoomTypeLabel[r.type] || r.type}</td>
+              <td>${BookingModeLabel[r.bookingMode] || r.bookingMode}</td>
+              <td>${r.capacity || '—'}</td>
+              <td class="actions">
+                <button onclick="editRoom('${r.id}')">Изм.</button>
+                <button class="danger" onclick="deleteRoom('${r.id}')">Удал.</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  async function populateFloorSelect(selectId) {
+    const select = document.getElementById(selectId);
+    try {
+      const floors = await API.adminGetFloors();
+      select.innerHTML = floors.map(f => `<option value="${f.id}">${escHtml(f.name)} (${f.floorNumber})</option>`).join('');
+    } catch {
+      select.innerHTML = '<option>Ошибка загрузки</option>';
+    }
+  }
+
+  async function openRoomModal(id) {
+    hideAlert('alert-room');
+    document.getElementById('room-id').value = id || '';
+    document.getElementById('room-name').value = '';
+    document.getElementById('room-capacity').value = '';
+    document.getElementById('room-modal-title').textContent = id ? 'Изменить комнату' : 'Добавить комнату';
+    await populateFloorSelect('room-floor');
+
+    if (id) {
+      const r = cache.rooms.find(x => x.id === id);
+      if (r) {
+        document.getElementById('room-floor').value = r.floorId;
+        document.getElementById('room-name').value = r.name || '';
+        document.getElementById('room-type').value = r.type || 'OPEN_SPACE';
+        document.getElementById('room-booking-mode').value = r.bookingMode || 'ROOM';
+        document.getElementById('room-capacity').value = r.capacity || '';
+      }
+    }
+    document.getElementById('room-modal').classList.add('show');
+  }
+
+  async function saveRoom() {
+    const id = document.getElementById('room-id').value;
+    const floorId = document.getElementById('room-floor').value;
+    const name = document.getElementById('room-name').value.trim();
+    const type = document.getElementById('room-type').value;
+    const bookingMode = document.getElementById('room-booking-mode').value;
+    const capacity = document.getElementById('room-capacity').value;
+
+    if (!floorId || !name) { showAlert('alert-room', 'Заполните обязательные поля'); return; }
+
+    hideAlert('alert-room');
+    const btn = document.getElementById('btn-save-room');
+    setLoading(btn, true);
+    try {
+      const payload = { floorId, name, type, bookingMode, capacity: capacity ? parseInt(capacity) : null };
+      if (id) {
+        await API.adminUpdateRoom(id, payload);
+      } else {
+        await API.adminCreateRoom(payload);
+      }
+      closeModal('room-modal');
+      showToast(id ? 'Комната обновлена' : 'Комната создана', 'success');
+      loadRooms();
+      loadStats();
+    } catch(e) {
+      showAlert('alert-room', e.message);
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  function editRoom(id) { openRoomModal(id); }
+
+  async function deleteRoom(id) {
+    if (!confirm('Удалить комнату? Все рабочие места будут также удалены.')) return;
+    try {
+      await API.adminDeleteRoom(id);
+      showToast('Комната удалена', 'success');
+      loadRooms();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== WORKPLACES ====================
+  async function loadWorkplaces() {
+    const container = document.getElementById('workplaces-table-container');
+    try {
+      const [data, rooms] = await Promise.all([
+        API.adminGetWorkplaces(),
+        API.adminGetRooms().catch(() => cache.rooms),
+      ]);
+      cache.workplaces = data;
+      cache.rooms = rooms;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет рабочих мест</h3><p>Добавьте первое рабочее место</p></div></div>';
+        return;
+      }
+      const roomMap = Object.fromEntries(rooms.map(r => [r.id, r.name]));
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Код</th><th>Комната</th><th>Оборудование</th><th>Статус</th><th style="width:120px"></th></tr></thead>
+          <tbody>${data.map(w => `
+            <tr>
+              <td><strong>${escHtml(w.code)}</strong></td>
+              <td>${escHtml(roomMap[w.roomId] || '—')}</td>
+              <td style="color:var(--text-muted);font-size:13px">${(w.equipment || []).map(e => escHtml(e.name)).join(', ') || '—'}</td>
+              <td><span class="badge badge-${w.status === 'AVAILABLE' ? 'confirmed' : w.status === 'MAINTENANCE' ? 'maintenance' : 'cancelled'}">${WorkplaceStatusLabel[w.status] || w.status}</span></td>
+              <td class="actions">
+                <button onclick="editWorkplace('${w.id}')">Изм.</button>
+                <button class="danger" onclick="deleteWorkplace('${w.id}')">Удал.</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  async function populateRoomSelect(selectId) {
+    const select = document.getElementById(selectId);
+    try {
+      const rooms = await API.adminGetRooms();
+      select.innerHTML = rooms.map(r => `<option value="${r.id}">${escHtml(r.name)}</option>`).join('');
+    } catch {
+      select.innerHTML = '<option>Ошибка загрузки</option>';
+    }
+  }
+
+  async function openWorkplaceModal(id) {
+    hideAlert('alert-workplace');
+    document.getElementById('workplace-id').value = id || '';
+    document.getElementById('workplace-code').value = '';
+    document.getElementById('workplace-status').value = 'AVAILABLE';
+    document.getElementById('workplace-modal-title').textContent = id ? 'Изменить рабочее место' : 'Добавить рабочее место';
+    await populateRoomSelect('workplace-room');
+    await populateEquipmentCheckboxes(id ? cache.workplaces.find(x => x.id === id) : null);
+
+    if (id) {
+      const w = cache.workplaces.find(x => x.id === id);
+      if (w) {
+        document.getElementById('workplace-room').value = w.roomId;
+        document.getElementById('workplace-code').value = w.code || '';
+        document.getElementById('workplace-status').value = w.status || 'AVAILABLE';
+      }
+    }
+    document.getElementById('workplace-modal').classList.add('show');
+  }
+
+  async function populateEquipmentCheckboxes(workplace) {
+    const container = document.getElementById('workplace-equipment-list');
+    try {
+      const equipment = cache.equipment.length ? cache.equipment : await API.adminGetEquipment();
+      cache.equipment = equipment;
+
+      if (equipment.length === 0) {
+        container.innerHTML = '<div class="form-hint">Список оборудования пуст — добавьте его на вкладке «Оборудование»</div>';
+        return;
+      }
+
+      const selectedIds = new Set((workplace?.equipment || []).map(e => e.id));
+
+      container.innerHTML = equipment.map(eq => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;cursor:pointer">
+          <input type="checkbox" class="workplace-equipment-checkbox" value="${eq.id}" ${selectedIds.has(eq.id) ? 'checked' : ''}/>
+          ${escHtml(eq.name)}
+        </label>`).join('');
+    } catch (e) {
+      container.innerHTML = `<div class="form-hint">Не удалось загрузить оборудование: ${e.message}</div>`;
+    }
+  }
+
+  async function saveWorkplace() {
+    const id = document.getElementById('workplace-id').value;
+    const roomId = document.getElementById('workplace-room').value;
+    const code = document.getElementById('workplace-code').value.trim();
+    const status = document.getElementById('workplace-status').value;
+    const equipmentIds = Array.from(document.querySelectorAll('.workplace-equipment-checkbox:checked')).map(cb => cb.value);
+
+    if (!roomId || !code) { showAlert('alert-workplace', 'Заполните обязательные поля'); return; }
+
+    hideAlert('alert-workplace');
+    const btn = document.getElementById('btn-save-workplace');
+    setLoading(btn, true);
+    try {
+      const payload = {
+        roomId, code, status,
+        equipment: equipmentIds.map(eqId => ({ id: eqId })),
+      };
+      if (id) {
+        await API.adminUpdateWorkplace(id, payload);
+      } else {
+        await API.adminCreateWorkplace(payload);
+      }
+      closeModal('workplace-modal');
+      showToast(id ? 'Рабочее место обновлено' : 'Рабочее место создано', 'success');
+      loadWorkplaces();
+      loadStats();
+    } catch(e) {
+      showAlert('alert-workplace', e.message);
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  function editWorkplace(id) { openWorkplaceModal(id); }
+
+  async function deleteWorkplace(id) {
+    if (!confirm('Удалить рабочее место?')) return;
+    try {
+      await API.adminDeleteWorkplace(id);
+      showToast('Рабочее место удалено', 'success');
+      loadWorkplaces();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== EQUIPMENT ====================
+  async function loadEquipment() {
+    const container = document.getElementById('equipment-table-container');
+    try {
+      const data = await API.adminGetEquipment();
+      cache.equipment = data;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет оборудования</h3><p>Добавьте первое оборудование (например, монитор, веб-камера)</p></div></div>';
+        return;
+      }
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Название</th><th style="width:140px"></th></tr></thead>
+          <tbody>${data.map(eq => `
+            <tr>
+              <td><strong>${escHtml(eq.name)}</strong></td>
+              <td class="actions">
+                <button onclick="editEquipment('${eq.id}')">Изм.</button>
+                <button class="danger" onclick="deleteEquipment('${eq.id}')">Удал.</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  function openEquipmentModal(id) {
+    hideAlert('alert-equipment');
+    document.getElementById('equipment-id').value = id || '';
+    document.getElementById('equipment-name').value = '';
+    document.getElementById('equipment-modal-title').textContent = id ? 'Изменить оборудование' : 'Добавить оборудование';
+
+    if (id) {
+      const eq = cache.equipment.find(x => x.id === id);
+      if (eq) document.getElementById('equipment-name').value = eq.name || '';
+    }
+    document.getElementById('equipment-modal').classList.add('show');
+  }
+
+  function editEquipment(id) { openEquipmentModal(id); }
+
+  async function saveEquipment() {
+    const id = document.getElementById('equipment-id').value;
+    const name = document.getElementById('equipment-name').value.trim();
+
+    if (!name) { showAlert('alert-equipment', 'Укажите название оборудования'); return; }
+
+    hideAlert('alert-equipment');
+    const btn = document.getElementById('btn-save-equipment');
+    setLoading(btn, true);
+    try {
+      if (id) {
+        await API.adminUpdateEquipment(id, { name });
+      } else {
+        await API.adminCreateEquipment({ name });
+      }
+      closeModal('equipment-modal');
+      showToast(id ? 'Оборудование обновлено' : 'Оборудование добавлено', 'success');
+      loadEquipment();
+      loadStats();
+    } catch(e) {
+      showAlert('alert-equipment', e.message);
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function deleteEquipment(id) {
+    if (!confirm('Удалить это оборудование? Оно будет отвязано от всех рабочих мест.')) return;
+    try {
+      await API.adminDeleteEquipment(id);
+      showToast('Оборудование удалено', 'success');
+      loadEquipment();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== USERS ====================
+  async function loadUsers() {
+    const container = document.getElementById('users-table-container');
+    try {
+      const data = await API.adminGetUsers();
+      cache.users = data;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет пользователей</h3></div></div>';
+        return;
+      }
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Имя</th><th>Email</th><th>Роли</th><th>Статус</th><th style="width:140px"></th></tr></thead>
+          <tbody>${data.map(u => `
+            <tr>
+              <td>${escHtml((u.firstName || '') + ' ' + (u.lastName || '')).trim() || '—'}</td>
+              <td>${escHtml(u.email)}</td>
+              <td>${Array.isArray(u.roles) ? u.roles.join(', ') : u.roles}</td>
+              <td><span class="badge ${u.enabled ? 'badge-confirmed' : 'badge-cancelled'}">${u.enabled ? 'Активен' : 'Заблокирован'}</span></td>
+              <td class="actions">
+                ${u.enabled
+                  ? `<button class="danger" onclick="blockUser('${u.id}')">Блок.</button>`
+                  : `<button onclick="unblockUser('${u.id}')">Разбл.</button>`}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  async function blockUser(id) {
+    if (!confirm('Заблокировать пользователя?')) return;
+    try {
+      await API.adminBlockUser(id);
+      showToast('Пользователь заблокирован', 'success');
+      loadUsers();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function unblockUser(id) {
+    if (!confirm('Разблокировать пользователя?')) return;
+    try {
+      await API.adminUnblockUser(id);
+      showToast('Пользователь разблокирован', 'success');
+      loadUsers();
+      loadStats();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== BOOKINGS ====================
+  async function loadBookings() {
+    const container = document.getElementById('bookings-table-container');
+    try {
+      const data = await API.adminGetBookings();
+      cache.bookings = data;
+      if (data.length === 0) {
+        container.innerHTML = '<div class="card"><div class="empty-state"><h3>Нет бронирований</h3></div></div>';
+        return;
+      }
+      container.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Объект</th><th>Тип</th><th>Начало</th><th>Окончание</th><th>Статус</th><th style="width:140px"></th></tr></thead>
+          <tbody>${data.map(b => `
+            <tr>
+              <td><strong>${escHtml(b.targetName || '—')}</strong></td>
+              <td>${BookingModeLabel[b.targetType] || b.targetType}</td>
+              <td>${formatDateTime(b.startTime)}</td>
+              <td>${formatDateTime(b.endTime)}</td>
+              <td><span class="badge ${BookingStatusClass[b.status]}">${BookingStatusLabel[b.status]}</span></td>
+              <td class="actions">
+                <select class="status-select" onchange="changeBookingStatus('${b.id}', this.value)">
+                  <option value="" disabled ${b.status === 'CONFIRMED' ? 'selected' : ''}>Подтверждено</option>
+                  <option value="CANCELLED" ${b.status === 'CANCELLED' ? 'selected' : ''}>Отменено</option>
+                  <option value="COMPLETED" ${b.status === 'COMPLETED' ? 'selected' : ''}>Завершено</option>
+                </select>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  async function changeBookingStatus(id, status) {
+    if (!status) return;
+    if (!confirm(`Изменить статус бронирования на "${BookingStatusLabel[status]}"?`)) return;
+    try {
+      await API.adminUpdateBookingStatus(id, status);
+      showToast('Статус обновлен', 'success');
+      loadBookings();
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ==================== MODAL HELPERS ====================
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  // Close modal on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+  });
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ==================== INIT ====================
+  loadStats();
+  loadTabData('buildings');
+</script>
+</body>
+</html>

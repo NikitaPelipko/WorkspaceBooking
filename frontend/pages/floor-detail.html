@@ -8,8 +8,31 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/style.css"/>
   <style>
-    .workplaces-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
+    .workplaces-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 12px; }
     .room-card { margin-bottom: 14px; }
+    .filter-bar-inline {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+    .filter-bar-inline .form-group { margin: 0; flex: 1; min-width: 150px; }
+    .search-input-inline {
+      width: 100%;
+      padding: 10px 14px 10px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--text-main);
+      background: var(--surface);
+      transition: border-color .15s;
+      outline: none;
+    }
+    .search-input-inline:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .search-wrapper-inline { position: relative; flex: 2; min-width: 200px; }
+    .search-wrapper-inline svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
   </style>
 </head>
 <body>
@@ -33,8 +56,8 @@
     <p id="page-sub">Выберите помещение или рабочее место</p>
   </div>
 
-  <!-- TIME RANGE (carried from floors page or editable) -->
-  <div class="card" style="margin-bottom:24px">
+  <!-- TIME RANGE -->
+  <div class="card" style="margin-bottom:20px">
     <div class="card-body">
       <div class="section-title" style="margin-bottom:12px">Интервал бронирования</div>
       <div class="form-row" style="align-items:flex-end">
@@ -50,9 +73,35 @@
     </div>
   </div>
 
+  <!-- FILTERS -->
+  <div class="filter-bar-inline">
+    <div class="search-wrapper-inline">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" id="search-filter" class="search-input-inline" placeholder="Поиск по названию или коду..." oninput="applyFilters()"/>
+    </div>
+    <div class="form-group" style="flex:1">
+      <select id="type-filter" class="form-control" onchange="applyFilters()">
+        <option value="">Все типы</option>
+        <option value="OPEN_SPACE">Опенспейс</option>
+        <option value="MEETING_ROOM">Переговорная</option>
+        <option value="COWORKING">Коворкинг</option>
+        <option value="LECTURE_ROOM">Лекционный зал</option>
+      </select>
+    </div>
+    <button class="btn-secondary" onclick="loadRooms()" title="Обновить">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.8-3.3L23 10M1 14l4.7 4.3A9 9 0 0 0 20.5 15"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- ROOMS LIST -->
-  <div class="section-title">Помещения и рабочие места</div>
-  
+  <div class="section-title">Помещения и рабочие места <span id="room-count" style="font-weight:400;color:var(--text-muted)"></span></div>
+  <div id="rooms-container">
+    <div class="loading-state"><div class="spinner"></div>Загрузка помещений...</div>
+  </div>
 </div>
 
 <!-- BOOKING MODAL -->
@@ -123,11 +172,81 @@
   document.getElementById('time-from').value = defaultFrom;
   document.getElementById('time-to').value   = defaultTo;
 
-  // State for booking modal
+  // State
   let pendingBooking = null;
+  let allRooms = [];
+
+  // ==================== LOAD ROOMS ====================
+  async function loadRooms() {
+    const container = document.getElementById('rooms-container');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div>Загрузка помещений...</div>';
+
+    try {
+      const rooms = await API.getRoomsByFloor(floorId);
+
+      // Load workplaces for each room
+      for (const room of rooms) {
+        try {
+          const workplaces = await API.getWorkplacesByRoom(room.id);
+          room.workplaces = workplaces || [];
+        } catch (e) {
+          room.workplaces = [];
+        }
+      }
+
+      allRooms = rooms;
+      applyFilters();
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-error show">${e.message}</div>`;
+    }
+  }
+
+  // ==================== FILTERS ====================
+  function applyFilters() {
+    const searchText = document.getElementById('search-filter').value.toLowerCase().trim();
+    const typeFilter = document.getElementById('type-filter').value;
+    const from = document.getElementById('time-from').value;
+    const to = document.getElementById('time-to').value;
+
+    let filtered = [...allRooms];
+
+    if (searchText) {
+      filtered = filtered.filter(room => {
+        const matchName = room.name.toLowerCase().includes(searchText);
+        const matchWp = room.workplaces && room.workplaces.some(wp =>
+          wp.code.toLowerCase().includes(searchText)
+        );
+        return matchName || matchWp;
+      });
+    }
+
+    if (typeFilter) {
+      filtered = filtered.filter(room => room.type === typeFilter);
+    }
+
+    document.getElementById('room-count').textContent = filtered.length ? `(${filtered.length})` : '';
+    renderRooms(filtered, from, to);
+  }
+
+  // ==================== RENDER ====================
+  function renderRooms(rooms, from, to) {
+    const container = document.getElementById('rooms-container');
+    if (rooms.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+          </svg>
+          <h3>Помещения не найдены</h3>
+          <p>Попробуйте изменить фильтры</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = rooms.map(room => roomCard(room, from, to)).join('');
+  }
 
   function roomCard(room, from, to) {
-    const isAvailable = room.availableNow;
     const hasWorkplaces = room.workplaces && room.workplaces.length > 0;
 
     let wpHtml = '';
@@ -155,12 +274,11 @@
               <span class="room-type">${RoomTypeLabel[room.type] || room.type}</span>
               <h4 style="margin-top:6px">${escHtml(room.name)}</h4>
             </div>
-            <span class="badge ${isAvailable ? 'badge-available' : 'badge-busy'}">
-              ${isAvailable ? 'Доступно' : 'Занято'}
-            </span>
+            <span class="badge badge-available">${room.capacity ? `до ${room.capacity} чел.` : 'Комната'}</span>
           </div>
           <div class="room-meta">
-            ${room.capacity ? `<span>Вместимость: <strong>${room.capacity}</strong></span>` : ''}
+            ${room.bookingMode ? `<span>Режим: <strong>${BookingModeLabel[room.bookingMode] || room.bookingMode}</strong></span>` : ''}
+            ${hasWorkplaces ? `<span>Мест: <strong>${room.workplaces.length}</strong></span>` : ''}
           </div>
           ${wpHtml}
           ${bookRoomBtn}
@@ -169,16 +287,16 @@
   }
 
   function workplaceChip(wp, room, from, to) {
-    const avail = wp.availableNow && wp.status === 'AVAILABLE';
-    const cls   = wp.status === 'AVAILABLE' ? (avail ? 'available' : 'unavailable') :
-                  wp.status === 'MAINTENANCE' ? 'maintenance' : 'unavailable';
-    const click = avail
+    const isAvailable = wp.status === 'AVAILABLE';
+    const cls = isAvailable ? 'available' : (wp.status === 'MAINTENANCE' ? 'maintenance' : 'unavailable');
+    const click = isAvailable
       ? `onclick="openBookingModal('${wp.id}','WORKPLACE','${escHtml(wp.code)}','${from}','${to}')"`
       : '';
+    const statusLabel = WorkplaceStatusLabel[wp.status] || wp.status;
     return `
-      <div class="workplace-chip ${cls}" ${click} title="${WorkplaceStatusLabel[wp.status] || wp.status}">
+      <div class="workplace-chip ${cls}" ${click} title="${statusLabel}">
         <div style="font-weight:600">${escHtml(wp.code)}</div>
-        <div style="font-size:11px;opacity:.7;margin-top:2px">${avail ? '✓' : '✗'}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">${isAvailable ? '✓' : '✗'}</div>
       </div>`;
   }
 
@@ -215,7 +333,7 @@
     if (new Date(from) < new Date()) { showAlert('alert-booking', 'Нельзя бронировать в прошлом'); return; }
 
     const btn = document.getElementById('btn-confirm-booking');
-    setLoading(btn, true, 'Бронируем…');
+    setLoading(btn, true, 'Бронируем...');
 
     try {
       await API.createBooking(
@@ -233,7 +351,6 @@
     }
   }
 
-  // Close modal on overlay click
   document.getElementById('booking-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
@@ -242,6 +359,8 @@
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
   }
 
+  // ==================== INIT ====================
+  loadRooms();
 </script>
 </body>
 </html>

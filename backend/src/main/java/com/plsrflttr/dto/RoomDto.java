@@ -1,5 +1,6 @@
 package com.plsrflttr.dto;
 
+import com.plsrflttr.models.BookingMode;
 import com.plsrflttr.models.RoomType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class RoomDto {
     private UUID floorId;
     private String name;
     private RoomType type;
+    private BookingMode bookingMode;
     private Integer capacity;
     private List<UUID> workplaceIds;
 }

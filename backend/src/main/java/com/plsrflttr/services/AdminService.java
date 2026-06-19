@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -114,7 +113,7 @@ public class AdminService {
                 .map(floorMapper::toDto).toList();
     }
 
-    public FloorDto createFloor(FloorDto dto, MultipartFile svgFile) {
+    public FloorDto createFloor(FloorDto dto) {
         if (dto.getBuildingId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Building ID is required");
         }
@@ -131,13 +130,12 @@ public class AdminService {
         return floorMapper.toDto(saved);
     }
 
-    public FloorDto updateFloor(UUID floorId, FloorDto dto, MultipartFile svgFile) {
+    public FloorDto updateFloor(UUID floorId, FloorDto dto) {
         Floor floor = floorRepository.findById(floorId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
 
         if (dto.getName() != null) floor.setName(dto.getName());
         if (dto.getFloorNumber() != null) floor.setFloorNumber(dto.getFloorNumber());
-
 
         return floorMapper.toDto(floorRepository.save(floor));
     }

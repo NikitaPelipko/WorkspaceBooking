@@ -4,6 +4,7 @@ import com.plsrflttr.dto.RoomDto;
 import com.plsrflttr.dto.WorkplaceDto;
 import com.plsrflttr.mappers.RoomMapper;
 import com.plsrflttr.mappers.WorkplaceMapper;
+import com.plsrflttr.models.RoomType;
 import com.plsrflttr.repositories.FloorRepository;
 import com.plsrflttr.repositories.RoomRepository;
 import com.plsrflttr.repositories.WorkplaceRepository;
@@ -26,11 +27,28 @@ public class RoomsService {
     private final WorkplaceRepository workplaceRepository;
     private final WorkplaceMapper workplaceMapper;
 
-    public List<RoomDto> getRooms(UUID floorUuid) {
-        floorRepository.findById(floorUuid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
-        return roomRepository.findByFloorId(floorUuid)
-                .stream().map(roomMapper::toDto).toList();
+    public List<RoomDto> getRooms(UUID floorUuid, RoomType type) {
+        if (floorUuid != null && type != null) {
+            floorRepository.findById(floorUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
+            return roomRepository.findByFloorIdAndType(floorUuid, type)
+                    .stream().map(roomMapper::toDto).toList();
+        }
+        if (floorUuid != null) {
+            floorRepository.findById(floorUuid)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
+            return roomRepository.findByFloorId(floorUuid)
+                    .stream().map(roomMapper::toDto).toList();
+        }
+        if (type != null) {
+            return roomRepository.findAll().stream()
+                    .filter(r -> r.getType() == type)
+                    .map(roomMapper::toDto)
+                    .toList();
+        }
+        return roomRepository.findAll().stream()
+                .map(roomMapper::toDto)
+                .toList();
     }
 
     public RoomDto getRoom(UUID room_id) {

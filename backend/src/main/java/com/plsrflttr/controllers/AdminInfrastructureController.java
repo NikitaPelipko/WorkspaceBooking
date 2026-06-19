@@ -56,21 +56,19 @@ public class AdminInfrastructureController {
         return ResponseEntity.ok(adminService.getAllFloors());
     }
 
-    @PostMapping(value = "/floors", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/floors")
     public ResponseEntity<FloorDto> createFloor(
-            @RequestPart("data") FloorDto floorDto,
-            @RequestPart(value = "svg", required = false) MultipartFile svgFile
+            @RequestBody FloorDto floorDto
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createFloor(floorDto, svgFile));
+        return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createFloor(floorDto));
     }
 
     @PutMapping(value = "/floors/{floorId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FloorDto> updateFloor(
             @PathVariable UUID floorId,
-            @RequestPart("data") FloorDto floorDto,
-            @RequestPart(value = "svg", required = false) MultipartFile svgFile
+            @RequestBody FloorDto floorDto
     ) {
-        return ResponseEntity.ok(adminService.updateFloor(floorId, floorDto, svgFile));
+        return ResponseEntity.ok(adminService.updateFloor(floorId, floorDto));
     }
 
     @DeleteMapping("/floors/{floorId}")

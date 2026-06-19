@@ -1,6 +1,7 @@
 package com.plsrflttr.repositories;
 
 import com.plsrflttr.models.Room;
+import com.plsrflttr.models.RoomType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 public interface RoomRepository extends JpaRepository<Room, UUID> {
     List<Room> findByFloorId(UUID floorId);
+    List<Room> findByFloorIdAndType(UUID floorId, RoomType type);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

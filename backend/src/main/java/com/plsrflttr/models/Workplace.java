@@ -8,15 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "workplaces",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_workplace_svg",
-                        columnNames = "svg_element_id"
-                )
-        }
-)
+@Table(name = "workplaces")
 @Getter
 @Setter
 @NoArgsConstructor

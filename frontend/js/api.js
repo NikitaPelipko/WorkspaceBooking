@@ -128,8 +128,19 @@ const API = {
 
   // Floors / Rooms
   getRoomsByFloor(floorId)                  { return Http.get(`/floors/${floorId}/rooms`); },
+  getRooms(floorId, type)                   {
+    let url = '/rooms?';
+    if (floorId) url += `floorId=${floorId}&`;
+    if (type) url += `type=${type}&`;
+    return Http.get(url);
+  },
   getRoom(roomId)                           { return Http.get(`/rooms/${roomId}`); },
   getWorkplacesByRoom(roomId)               { return Http.get(`/rooms/${roomId}/workplaces`); },
+  getWorkplaces(roomId)                     {
+    let url = '/workplaces';
+    if (roomId) url += `?roomId=${roomId}`;
+    return Http.get(url);
+  },
   getWorkplace(workplaceId)                 { return Http.get(`/workplaces/${workplaceId}`); },
 
   // Bookings
@@ -169,8 +180,8 @@ const API = {
 
   // Admin - Floors
   adminGetFloors()             { return Http.get('/admin/floors'); },
-  adminCreateFloor(formData)   { return Http.upload('/admin/floors', formData); },
-  adminUpdateFloor(id, formData) { return Http.uploadPut(`/admin/floors/${id}`, formData); },
+  adminCreateFloor(data)       { return Http.post('/admin/floors', data); },
+  adminUpdateFloor(id, data)   { return Http.put(`/admin/floors/${id}`, data); },
   adminDeleteFloor(id)         { return Http.delete(`/admin/floors/${id}`); },
 
   // Admin - Rooms
@@ -252,6 +263,7 @@ function initNav(activePage) {
 
   const navLinks = [
     { href: '/pages/home.html',      label: 'Главная',   key: 'home'      },
+    { href: '/pages/search.html',   label: 'Поиск',     key: 'search'    },
     { href: '/pages/buildings.html', label: 'Корпуса',   key: 'buildings' },
     { href: '/pages/profile.html',   label: 'Кабинет',   key: 'profile'   },
   ];

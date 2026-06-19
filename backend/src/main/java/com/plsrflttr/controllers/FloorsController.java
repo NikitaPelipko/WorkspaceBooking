@@ -21,7 +21,7 @@ public class FloorsController {
 
     @GetMapping("/{floorId}/rooms")
     public ResponseEntity<List<RoomDto>> getRooms(@PathVariable UUID floorId) {
-        return ResponseEntity.status(HttpStatus.OK).body(roomsService.getRooms(floorId));
+        return ResponseEntity.status(HttpStatus.OK).body(roomsService.getRooms(floorId, null));
     }
 
 
