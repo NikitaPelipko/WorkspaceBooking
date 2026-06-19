@@ -95,9 +95,13 @@
     try {
       const data = await API.login(email, password);
       Auth.setTokens(data.accessToken, data.refreshToken);
-      // Decode user info from token (simple JWT decode)
-      const payload = JSON.parse(atob(data.accessToken.split('.')[1]));
-      Auth.saveUser({ email: payload.sub });
+      // Save full user info including roles
+      Auth.saveUser({
+        email: data.email || email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        roles: data.roles,
+      });
       window.location.href = '/pages/home.html';
     } catch (e) {
       showAlert('alert-login', e.message || 'Неверный email или пароль');
@@ -125,7 +129,13 @@
     try {
       const data = await API.register(email, password, firstName, lastName);
       Auth.setTokens(data.accessToken, data.refreshToken);
-      Auth.saveUser({ email, firstName, lastName });
+      // Save full user info including roles
+      Auth.saveUser({
+        email: data.email || email,
+        firstName: data.firstName || firstName,
+        lastName: data.lastName || lastName,
+        roles: data.roles,
+      });
       window.location.href = '/pages/home.html';
     } catch (e) {
       showAlert('alert-register', e.message || 'Ошибка регистрации');

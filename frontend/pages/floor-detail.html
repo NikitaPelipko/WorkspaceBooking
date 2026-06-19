@@ -128,7 +128,6 @@
 
   if (!floorId) window.location.href = 'buildings.html';
 
-  // Breadcrumbs
   document.getElementById('bc-building').textContent = buildingName;
   document.getElementById('bc-building').href = `floors.html?buildingId=${buildingId}&buildingName=${encodeURIComponent(buildingName)}`;
   document.getElementById('bc-floor').textContent    = floorName;
@@ -209,7 +208,6 @@
         </div>`;
     }
 
-    // For rooms bookable as whole (MEETING_ROOM, LECTURE_ROOM)
     let bookRoomBtn = '';
     if (room.bookingMode === 'ROOM' || room.type === 'MEETING_ROOM' || room.type === 'LECTURE_ROOM') {
       bookRoomBtn = `

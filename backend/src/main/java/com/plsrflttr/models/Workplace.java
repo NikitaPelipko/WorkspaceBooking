@@ -34,14 +34,6 @@ public class Workplace {
     @Column(nullable = false, unique = true)
     private String code;
 
-    /**
-     * id объекта в SVG
-     *
-     * <rect id="desk_15"/>
-     */
-    @Column(name = "svg_element_id", nullable = false)
-    private String svgElementId;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private WorkplaceStatus status;

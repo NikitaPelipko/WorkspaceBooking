@@ -44,7 +44,7 @@ public class AuthService {
                 .build();
         String accessToken = jwtService.generateAccessToken(userDetails, saved.getId());
         String refreshToken = jwtService.generateRefreshToken(userDetails, saved.getId());
-        return new AuthResponse(accessToken, refreshToken);
+        return buildAuthResponse(accessToken, refreshToken, saved);
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -61,7 +61,7 @@ public class AuthService {
                 .build();
         String accessToken = jwtService.generateAccessToken(userDetails, user.getId());
         String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
-        return new AuthResponse(accessToken, refreshToken);
+        return buildAuthResponse(accessToken, refreshToken, user);
     }
 
     public AuthResponse refresh(String refreshToken) {
@@ -79,6 +79,18 @@ public class AuthService {
 
         String accessToken = jwtService.generateAccessToken(userDetails, user.getId());
         String newRefreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
-        return new AuthResponse(accessToken, newRefreshToken);
+        return buildAuthResponse(accessToken, newRefreshToken, user);
+    }
+
+    private AuthResponse buildAuthResponse(String accessToken, String refreshToken, User user) {
+        AuthResponse response = new AuthResponse();
+        response.setAccessToken(accessToken);
+        response.setRefreshToken(refreshToken);
+        response.setUserId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setFirstName(user.getFirstName());
+        response.setLastName(user.getLastName());
+        response.setRoles(user.getRoles());
+        return response;
     }
 }

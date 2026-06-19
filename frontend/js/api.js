@@ -19,21 +19,34 @@ const Auth = {
   getUser()    {
     try { return JSON.parse(localStorage.getItem('user_info')); } catch { return null; }
   },
+  isAdmin() {
+    const user = this.getUser();
+    return user && user.roles && (
+      Array.isArray(user.roles)
+        ? user.roles.includes('ADMIN')
+        : String(user.roles).includes('ADMIN')
+    );
+  },
 };
 
 // ==================== HTTP CLIENT ====================
 const Http = {
-  async _request(method, path, body = null, skipAuth = false) {
-    const headers = { 'Content-Type': 'application/json' };
+  async _request(method, path, body = null, skipAuth = false, isFormData = false) {
+    const headers = {};
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (!skipAuth && Auth.getAccess()) {
       headers['Authorization'] = `Bearer ${Auth.getAccess()}`;
     }
     const opts = { method, headers };
-    if (body) opts.body = JSON.stringify(body);
+    if (body) {
+      opts.body = isFormData ? body : JSON.stringify(body);
+    }
 
     let res = await fetch(API_BASE + path, opts);
 
-    // Token expired → try refresh
+    // Token expired -> try refresh
     if (res.status === 401 && Auth.getRefresh()) {
       const refreshed = await Http._refreshTokens();
       if (refreshed) {
@@ -45,6 +58,12 @@ const Http = {
         window.location.href = '/pages/auth.html';
         return;
       }
+    }
+
+    // Forbidden - not admin
+    if (res.status === 403) {
+      showToast('Доступ запрещен', 'error');
+      throw new Error('Доступ запрещен');
     }
 
     if (!res.ok) {
@@ -71,14 +90,26 @@ const Http = {
       if (!res.ok) return false;
       const data = await res.json();
       Auth.setTokens(data.accessToken, data.refreshToken);
+      // Update user info if returned
+      if (data.userId) {
+        Auth.saveUser({
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          roles: data.roles,
+        });
+      }
       return true;
     } catch { return false; }
   },
 
   get(path)           { return this._request('GET',    path);        },
   post(path, body)    { return this._request('POST',   path, body);  },
+  put(path, body)     { return this._request('PUT',    path, body);  },
   delete(path)        { return this._request('DELETE', path);        },
   postPublic(path, b) { return this._request('POST',   path, b, true); },
+  upload(path, formData) { return this._request('POST', path, formData, false, true); },
+  uploadPut(path, formData) { return this._request('PUT', path, formData, false, true); },
 };
 
 // ==================== API METHODS ====================
@@ -126,6 +157,49 @@ const API = {
   checkWorkplaceAvailability(workplaceId, startTime, endTime) {
     return Http.get(`/booking/workplaces/${workplaceId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
   },
+
+  // ==================== ADMIN API ====================
+
+  // Admin - Users
+  adminGetUsers()       { return Http.get('/admin/users'); },
+  adminBlockUser(id)    { return Http._request('PATCH', `/admin/users/${id}/block`); },
+  adminUnblockUser(id)  { return Http._request('PATCH', `/admin/users/${id}/unblock`); },
+
+  // Admin - Bookings
+  adminGetBookings()           { return Http.get('/admin/bookings'); },
+  adminUpdateBookingStatus(id, status) {
+    return Http._request('PATCH', `/admin/bookings/${id}/status?status=${encodeURIComponent(status)}`);
+  },
+
+  // Admin - Buildings
+  adminGetBuildings()          { return Http.get('/admin/buildings'); },
+  adminCreateBuilding(data)    { return Http.post('/admin/buildings', data); },
+  adminUpdateBuilding(id, data) { return Http.put(`/admin/buildings/${id}`, data); },
+  adminDeleteBuilding(id)      { return Http.delete(`/admin/buildings/${id}`); },
+
+  // Admin - Floors
+  adminGetFloors()             { return Http.get('/admin/floors'); },
+  adminCreateFloor(formData)   { return Http.upload('/admin/floors', formData); },
+  adminUpdateFloor(id, formData) { return Http.uploadPut(`/admin/floors/${id}`, formData); },
+  adminDeleteFloor(id)         { return Http.delete(`/admin/floors/${id}`); },
+
+  // Admin - Rooms
+  adminGetRooms()              { return Http.get('/admin/rooms'); },
+  adminCreateRoom(data)        { return Http.post('/admin/rooms', data); },
+  adminUpdateRoom(id, data)    { return Http.put(`/admin/rooms/${id}`, data); },
+  adminDeleteRoom(id)          { return Http.delete(`/admin/rooms/${id}`); },
+
+  // Admin - Workplaces
+  adminGetWorkplaces()         { return Http.get('/admin/workplaces'); },
+  adminCreateWorkplace(data)   { return Http.post('/admin/workplaces', data); },
+  adminUpdateWorkplace(id, data) { return Http.put(`/admin/workplaces/${id}`, data); },
+  adminDeleteWorkplace(id)     { return Http.delete(`/admin/workplaces/${id}`); },
+
+  // Admin: Equipment
+  adminGetEquipment()          { return Http.get('/admin/equipment'); },
+  adminCreateEquipment(data)   { return Http.post('/admin/equipment', data); },
+  adminUpdateEquipment(id, data) { return Http.put(`/admin/equipment/${id}`, data); },
+  adminDeleteEquipment(id)     { return Http.delete(`/admin/equipment/${id}`); },
 };
 
 // ==================== UI HELPERS ====================
@@ -191,6 +265,11 @@ function initNav(activePage) {
     { href: '/pages/buildings.html', label: 'Корпуса',   key: 'buildings' },
     { href: '/pages/profile.html',   label: 'Кабинет',   key: 'profile'   },
   ];
+
+  // Add admin link for ADMIN users
+  if (Auth.isAdmin()) {
+    navLinks.push({ href: '/pages/admin.html', label: 'Админка', key: 'admin' });
+  }
 
   const nav = document.getElementById('app-nav');
   if (!nav) return;

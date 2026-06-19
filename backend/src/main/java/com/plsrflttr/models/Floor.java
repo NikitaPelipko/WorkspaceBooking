@@ -29,9 +29,6 @@ public class Floor {
     @Column
     private Integer floorNumber;
 
-    @Column(nullable = false)
-    private String svgObjectKey;
-
     @OneToMany(mappedBy = "floor")
     private List<Room> rooms = new ArrayList<>();
 }

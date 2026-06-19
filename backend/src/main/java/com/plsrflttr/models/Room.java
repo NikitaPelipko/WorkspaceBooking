@@ -39,13 +39,6 @@ public class Room {
 
     private Integer capacity;
 
-    /**
-     * id элемента внутри SVG
-     * Например: room_101
-     */
-    @Column(unique = true, nullable = false)
-    private String svgElementId;
-
     @OneToMany(mappedBy = "room")
     private List<Workplace> workplaces = new ArrayList<>();
 }
