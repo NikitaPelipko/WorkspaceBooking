@@ -217,7 +217,6 @@
         <label class="form-label">Тип комнаты</label>
         <select id="filter-room-type" class="form-control" onchange="loadResults()">
           <option value="">Все типы</option>
-          <option value="OPEN_SPACE">Опенспейс</option>
           <option value="MEETING_ROOM">Переговорная</option>
           <option value="COWORKING">Коворкинг</option>
           <option value="LECTURE_ROOM">Лекционный зал</option>
@@ -317,7 +316,6 @@
         buildingSelect.appendChild(opt);
       });
 
-      // Load URL params if any
       const params = new URLSearchParams(location.search);
       const buildingId = params.get('buildingId');
       const floorId = params.get('floorId');
@@ -580,8 +578,8 @@
       await API.createBooking(
         pendingBooking.targetId,
         pendingBooking.targetType,
-        new Date(from).toISOString(),
-        new Date(to).toISOString()
+        from + ':00',
+        to + ':00'
       );
       closeModal();
       showToast('Бронирование подтверждено!', 'success');

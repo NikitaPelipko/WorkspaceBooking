@@ -328,6 +328,7 @@
     const from = document.getElementById('modal-from').value;
     const to   = document.getElementById('modal-to').value;
 
+
     if (!from || !to) { showAlert('alert-booking', 'Укажите время начала и конца'); return; }
     if (new Date(from) >= new Date(to)) { showAlert('alert-booking', 'Время начала должно быть раньше окончания'); return; }
     if (new Date(from) < new Date()) { showAlert('alert-booking', 'Нельзя бронировать в прошлом'); return; }
@@ -339,8 +340,8 @@
       await API.createBooking(
         pendingBooking.targetId,
         pendingBooking.targetType,
-        new Date(from).toISOString(),
-        new Date(to).toISOString()
+        from,
+        to
       );
       closeModal();
       showToast('Бронирование подтверждено!', 'success');

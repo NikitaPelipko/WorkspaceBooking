@@ -29,6 +29,6 @@ public class Floor {
     @Column
     private Integer floorNumber;
 
-    @OneToMany(mappedBy = "floor")
+    @OneToMany(mappedBy = "floor", cascade = CascadeType.REMOVE)
     private List<Room> rooms = new ArrayList<>();
 }

@@ -24,7 +24,7 @@ public class Building {
 
     private String address;
 
-    @OneToMany(mappedBy = "building")
+    @OneToMany(mappedBy = "building", cascade = CascadeType.REMOVE)
     private List<Floor> floors = new ArrayList<>();
 
 }

@@ -13,6 +13,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: ${SPRING_JPA_SHOW_SQL:false}
+        jdbc:
+          time_zone: {APP_TIMEZONE:Europe/Moscow}
     show-sql: ${SPRING_JPA_SHOW_SQL:false}
 
 app:
@@ -26,6 +28,7 @@ app:
     password: ${ADMIN_PASSWORD}
     first-name: ${ADMIN_FIRST_NAME:System}
     last-name: ${ADMIN_LAST_NAME:Administrator}
+  timezone: ${APP_TIMEZONE:Europe/Moscow}
 
 
 
