@@ -56,42 +56,6 @@
       margin-bottom: 12px;
     }
 
-    .room-result-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px 20px;
-      margin-bottom: 12px;
-      transition: box-shadow .2s;
-    }
-    .room-result-card:hover {
-      box-shadow: var(--shadow);
-    }
-    .room-result-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 10px;
-    }
-    .room-result-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin: 0;
-    }
-    .room-result-location {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-    .room-result-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-    }
-
     .workplace-result-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -300,8 +264,14 @@
   document.getElementById('filter-to').value   = toLocalISOString(plus1);
 
   function toLocalISOString(d) {
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function formatDateTimeForServer(value) {
+    if (!value) return value;
+    if (value.length === 16) return value + ':00';
+    return value;
   }
 
   // ==================== INIT ====================
@@ -373,6 +343,7 @@
     const searchText = document.getElementById('search-text').value.toLowerCase().trim();
     const from = document.getElementById('filter-from').value;
     const to = document.getElementById('filter-to').value;
+    const hasTimeRange = from && to;
 
     try {
       if (currentTab === 'rooms') {
@@ -394,6 +365,18 @@
           }
         }
 
+        // Load workplaces for COWORKING rooms
+        for (const room of rooms) {
+          if (room.bookingMode === 'WORKPLACE' || room.type === 'COWORKING') {
+            try {
+              const wps = await API.getWorkplacesByRoom(room.id);
+              room.workplaces = wps || [];
+            } catch (e) {
+              room.workplaces = [];
+            }
+          }
+        }
+
         // Apply text filter
         if (searchText) {
           rooms = rooms.filter(r => r.name.toLowerCase().includes(searchText));
@@ -403,12 +386,22 @@
           rooms = rooms.filter(r => r.type === roomType);
         }
 
+        // Filter out rooms fully booked in the selected time range
+        if (hasTimeRange) {
+          const roomBookableIds = rooms
+            .filter(r => r.bookingMode === 'ROOM' || r.type === 'MEETING_ROOM' || r.type === 'LECTURE_ROOM')
+            .map(r => r.id);
+          if (roomBookableIds.length > 0) {
+            const busyRoomIds = await API.checkBulkAvailability(roomBookableIds, 'ROOM', formatDateTimeForServer(from), formatDateTimeForServer(to));
+            rooms = rooms.filter(r => !busyRoomIds.includes(r.id));
+          }
+        }
+
         countEl.textContent = `Найдено комнат: ${rooms.length}`;
         renderRooms(rooms, from, to);
       } else {
         // Workplaces tab
         let workplaces = [];
-        const roomId = floorId ? null : null;
 
         if (floorId) {
           const rooms = await API.getRoomsByFloor(floorId);
@@ -437,6 +430,21 @@
           workplaces = workplaces.filter(wp => wp.code.toLowerCase().includes(searchText));
         }
 
+        // Filter out workplaces from rooms with WORKPLACE booking mode only
+        workplaces = workplaces.filter(wp => {
+          return true;
+        });
+
+        // Filter unavailable workplaces in the selected time range
+        if (hasTimeRange) {
+          workplaces = workplaces.filter(wp => wp.status === 'AVAILABLE');
+          if (workplaces.length > 0) {
+            const wpIds = workplaces.map(wp => wp.id);
+            const busyWpIds = await API.checkBulkAvailability(wpIds, 'WORKPLACE', formatDateTimeForServer(from), formatDateTimeForServer(to));
+            workplaces = workplaces.filter(wp => !busyWpIds.includes(wp.id));
+          }
+        }
+
         countEl.textContent = `Найдено рабочих мест: ${workplaces.length}`;
         renderWorkplaces(workplaces, from, to);
       }
@@ -460,30 +468,60 @@
       return;
     }
 
-    container.innerHTML = rooms.map(room => roomResultCard(room, from, to)).join('');
+    container.innerHTML = rooms.map(room => roomCard(room, from, to)).join('');
   }
 
-  function roomResultCard(room, from, to) {
-    const canBookRoom = room.bookingMode === 'ROOM' || room.type === 'MEETING_ROOM' || room.type === 'LECTURE_ROOM';
+  function roomCard(room, from, to) {
+    const hasWorkplaces = room.workplaces && room.workplaces.length > 0;
+
+    let wpHtml = '';
+    if (hasWorkplaces) {
+      wpHtml = `
+        <div class="workplaces-grid">
+          ${room.workplaces.map(wp => workplaceChip(wp, from, to)).join('')}
+        </div>`;
+    }
+
+    let bookRoomBtn = '';
+    if (room.bookingMode === 'ROOM' || room.type === 'MEETING_ROOM' || room.type === 'LECTURE_ROOM') {
+      bookRoomBtn = `
+        <button class="btn-primary btn-sm" style="margin-top:12px"
+                onclick="openBookingModal('${room.id}','ROOM','${escHtml(room.name)}','${from}','${to}')">
+          Забронировать комнату
+        </button>`;
+    }
 
     return `
-      <div class="room-result-card">
-        <div class="room-result-header">
-          <div>
-            <span class="room-type">${RoomTypeLabel[room.type] || room.type}</span>
-            <h4 class="room-result-title" style="margin-top:6px">${escHtml(room.name)}</h4>
+      <div class="room-card card" style="margin-bottom:14px">
+        <div class="card-body">
+          <div class="room-header">
+            <div>
+              <span class="room-type">${RoomTypeLabel[room.type] || room.type}</span>
+              <h4 style="margin-top:6px">${escHtml(room.name)}</h4>
+            </div>
+            <span class="badge badge-available">${room.capacity ? `до ${room.capacity} чел.` : 'Комната'}</span>
           </div>
-          <span class="badge badge-available">${room.capacity ? `до ${room.capacity} чел.` : 'Комната'}</span>
+          <div class="room-meta">
+            ${room.bookingMode ? `<span>Режим: <strong>${BookingModeLabel[room.bookingMode] || room.bookingMode}</strong></span>` : ''}
+            ${hasWorkplaces ? `<span>Мест: <strong>${room.workplaces.length}</strong></span>` : ''}
+          </div>
+          ${wpHtml}
+          ${bookRoomBtn}
         </div>
-        <div class="room-result-meta">
-          <span>Режим: <strong>${BookingModeLabel[room.bookingMode] || room.bookingMode}</strong></span>
-          <span>Мест: <strong>${room.workplaceIds?.length || 0}</strong></span>
-        </div>
-        ${canBookRoom ? `
-          <button class="btn-primary btn-sm" onclick="openBookingModal('${room.id}','ROOM','${escHtml(room.name)}','${from}','${to}')">
-            Забронировать комнату
-          </button>
-        ` : ''}
+      </div>`;
+  }
+
+  function workplaceChip(wp, from, to) {
+    const isAvailable = wp.status === 'AVAILABLE';
+    const cls = isAvailable ? 'available' : (wp.status === 'MAINTENANCE' ? 'maintenance' : 'unavailable');
+    const click = isAvailable
+      ? `onclick="openBookingModal('${wp.id}','WORKPLACE','${escHtml(wp.code)}','${from}','${to}')"`
+      : '';
+    const statusLabel = WorkplaceStatusLabel[wp.status] || wp.status;
+    return `
+      <div class="workplace-chip ${cls}" ${click} title="${statusLabel}">
+        <div style="font-weight:600">${escHtml(wp.code)}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">${isAvailable ? '✓' : '✗'}</div>
       </div>`;
   }
 
@@ -578,8 +616,8 @@
       await API.createBooking(
         pendingBooking.targetId,
         pendingBooking.targetType,
-        from + ':00',
-        to + ':00'
+        formatDateTimeForServer(from),
+        formatDateTimeForServer(to)
       );
       closeModal();
       showToast('Бронирование подтверждено!', 'success');

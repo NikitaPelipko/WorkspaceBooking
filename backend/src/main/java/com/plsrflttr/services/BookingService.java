@@ -16,7 +16,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -136,6 +138,20 @@ public class BookingService {
         }
 
         return !bookingRepository.existsOverlapping(workplaceId, BookingMode.WORKPLACE, start, end);
+    }
+
+    public Set<UUID> checkBulkAvailability(Set<UUID> targetIds, BookingMode targetType, String startTimeStr, String endTimeStr) {
+        if (targetIds == null || targetIds.isEmpty()) {
+            return Set.of();
+        }
+        LocalDateTime start = parseDateTime(startTimeStr);
+        LocalDateTime end = parseDateTime(endTimeStr);
+        validateTimeRange(start, end);
+
+        var busyBookings = bookingRepository.findBusyTargets(targetIds, start, end);
+        return busyBookings.stream()
+                .map(Booking::getTargetId)
+                .collect(Collectors.toSet());
     }
 
 

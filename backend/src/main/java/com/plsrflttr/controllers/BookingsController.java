@@ -1,5 +1,6 @@
 package com.plsrflttr.controllers;
 
+import com.plsrflttr.dto.AvailabilityRequestDto;
 import com.plsrflttr.dto.BookingDto;
 import com.plsrflttr.dto.BookingRequestDto;
 import com.plsrflttr.services.BookingService;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -64,6 +66,19 @@ public class BookingsController {
                         workplace_id,
                         startTime,
                         endTime
+                ));
+    }
+
+    @PostMapping("/availability/bulk")
+    public ResponseEntity<Set<UUID>> checkBulkAvailability(
+            @RequestBody AvailabilityRequestDto request
+    ) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(bookingService.checkBulkAvailability(
+                        request.getTargetIds(),
+                        request.getTargetType(),
+                        request.getStartTime(),
+                        request.getEndTime()
                 ));
     }
 

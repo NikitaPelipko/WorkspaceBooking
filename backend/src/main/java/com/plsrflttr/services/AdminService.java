@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -170,7 +171,7 @@ public class AdminService {
             room.setBookingMode(BookingMode.ROOM);
         }
         if (room.getType() == null) {
-            room.setType(RoomType.OPEN_SPACE);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room type is required");
         }
 
         Room saved = roomRepository.save(room);
@@ -183,7 +184,16 @@ public class AdminService {
 
         if (dto.getName() != null) room.setName(dto.getName());
         if (dto.getType() != null) room.setType(dto.getType());
-        if (dto.getCapacity() != null) room.setCapacity(dto.getCapacity());
+        if (dto.getCapacity() != null) {
+            long currentWorkplaces = workplaceRepository.findByRoomId(room.getId()).size();
+            if (dto.getCapacity() < currentWorkplaces) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Capacity cannot be less than current number of workplaces (" + currentWorkplaces + ")"
+                );
+            }
+            room.setCapacity(dto.getCapacity());
+        }
         if (dto.getFloorId() != null) {
             Floor floor = floorRepository.findById(dto.getFloorId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
@@ -217,6 +227,24 @@ public class AdminService {
         Room room = roomRepository.findById(dto.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
+        if (room.getBookingMode() == BookingMode.ROOM) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot add workplaces to a room with 'ROOM' booking mode"
+            );
+        }
+
+        // Check capacity
+        if (room.getCapacity() != null) {
+            long currentCount = workplaceRepository.findByRoomId(room.getId()).size();
+            if (currentCount >= room.getCapacity()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Room capacity exceeded. Maximum " + room.getCapacity() + " workplaces allowed."
+                );
+            }
+        }
+
         Workplace wp = new Workplace();
         wp.setRoom(room);
         wp.setCode(dto.getCode());
@@ -234,9 +262,15 @@ public class AdminService {
         if (dto.getCode() != null) wp.setCode(dto.getCode());
         if (dto.getStatus() != null) wp.setStatus(dto.getStatus());
         if (dto.getEquipment() != null) wp.setEquipment(resolveEquipment(dto.getEquipment()));
-        if (dto.getRoomId() != null) {
+        if (dto.getRoomId() != null && !dto.getRoomId().equals(wp.getRoom().getId())) {
             Room room = roomRepository.findById(dto.getRoomId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+            if (room.getBookingMode() == BookingMode.ROOM) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Cannot move workplace to a room with 'ROOM' booking mode"
+                );
+            }
             wp.setRoom(room);
         }
 

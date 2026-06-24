@@ -84,7 +84,6 @@
     <div class="form-group" style="flex:1">
       <select id="type-filter" class="form-control" onchange="applyFilters()">
         <option value="">Все типы</option>
-        <option value="OPEN_SPACE">Опенспейс</option>
         <option value="MEETING_ROOM">Переговорная</option>
         <option value="COWORKING">Коворкинг</option>
         <option value="LECTURE_ROOM">Лекционный зал</option>
@@ -161,9 +160,15 @@
 
   function toLocalInput(iso) {
     if (!iso) return '';
-    const d   = new Date(iso);
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function formatDateTimeForServer(value) {
+    if (!value) return value;
+    if (value.length === 16) return value + ':00';
+    return value;
   }
 
   const defaultFrom = pFrom ? toLocalInput(pFrom) : toLocalInput(new Date());
@@ -340,8 +345,8 @@
       await API.createBooking(
         pendingBooking.targetId,
         pendingBooking.targetType,
-        from,
-        to
+        formatDateTimeForServer(from),
+        formatDateTimeForServer(to)
       );
       closeModal();
       showToast('Бронирование подтверждено!', 'success');

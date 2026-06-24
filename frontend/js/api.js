@@ -158,6 +158,9 @@ const API = {
   checkWorkplaceAvailability(workplaceId, startTime, endTime) {
     return Http.get(`/booking/workplaces/${workplaceId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
   },
+  checkBulkAvailability(targetIds, targetType, startTime, endTime) {
+    return Http.post('/booking/availability/bulk', { targetIds, targetType, startTime, endTime });
+  },
 
   // ==================== ADMIN API ====================
 
